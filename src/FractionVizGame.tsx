@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useCallback, useId } from "react";
 import { ArrowLeft } from "lucide-react";
+import { ZLOMK_NARROW_BREAKPOINT_PX } from "./zlomkarnaRoutes";
 
 const FONT_UI = "'Fenomen Sans', ui-sans-serif, system-ui, sans-serif";
 
@@ -34,16 +35,15 @@ function useNarrowTwoCol(maxWidthPx: number) {
 type Fraction = { numerator: number; denominator: number };
 type ViewMode = "pie" | "grid" | "numberline";
 
+/** Kompaktní typografie / koláč — jen podle šířky okna (dotyk na desktopu nezmenšuje UI). */
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
-    const q = () => {
-      const m = window.innerWidth <= 768 || "ontouchstart" in window || navigator.maxTouchPoints > 0;
-      setIsMobile(m);
-    };
-    q();
-    window.addEventListener("resize", q);
-    return () => window.removeEventListener("resize", q);
+    const mq = window.matchMedia("(max-width: 640px)");
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
   }, []);
   return isMobile;
 }
@@ -271,7 +271,7 @@ function NumberLineViz({
 export function FractionVizGame({ onBack }: { onBack: () => void }) {
   const uid = useId().replace(/:/g, "");
   const isMobile = useIsMobile();
-  const narrow = useNarrowTwoCol(900);
+  const narrow = useNarrowTwoCol(ZLOMK_NARROW_BREAKPOINT_PX);
 
   const [currentFraction, setCurrentFraction] = useState<Fraction>({ numerator: 1, denominator: 4 });
   const [viewMode, setViewMode] = useState<ViewMode>("pie");
@@ -281,12 +281,9 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
   const [showResult, setShowResult] = useState<"correct" | "incorrect" | null>(null);
   const [viewModeIndex, setViewModeIndex] = useState(0);
 
-  const [timeLeft, setTimeLeft] = useState(20);
-  const [lives, setLives] = useState(3);
-  const [completedInRound, setCompletedInRound] = useState(0);
   const [totalCompleted, setTotalCompleted] = useState(0);
-  const [gameOver, setGameOver] = useState(false);
-  const [isActive, setIsActive] = useState(true);
+  /** Počet odeslaných odpovědí (✓), bez „potřebuješ víc dílků“ — jako kvíz score/total */
+  const [totalAnswered, setTotalAnswered] = useState(0);
 
   const reallyGenerate = useCallback(() => {
     const denominators = [2, 3, 4, 5, 6, 8];
@@ -303,8 +300,6 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
     setSelectedSegments([false]);
     setShowHint(false);
     setShowResult(null);
-    setTimeLeft(20);
-    setIsActive(true);
   }, []);
 
   useEffect(() => {
@@ -315,42 +310,6 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
     setSelectedSegments(new Array(subdivisions).fill(false));
   }, [subdivisions]);
 
-  useEffect(() => {
-    if (gameOver || !isActive || timeLeft <= 0) return;
-    const id = setTimeout(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          setIsActive(false);
-          setTimeout(() => {
-            setLives((lv) => {
-              const nl = lv - 1;
-              if (nl <= 0) setGameOver(true);
-              else {
-                setShowResult("incorrect");
-                setTimeout(() => reallyGenerate(), 1500);
-              }
-              return nl;
-            });
-          }, 0);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearTimeout(id);
-  }, [gameOver, isActive, timeLeft, reallyGenerate]);
-
-  const restartGame = () => {
-    setGameOver(false);
-    setLives(3);
-    setCompletedInRound(0);
-    setTotalCompleted(0);
-    setTimeLeft(20);
-    setIsActive(true);
-    setViewModeIndex(0);
-    reallyGenerate();
-  };
-
   const handleSegmentClick = (index: number) => {
     const next = [...selectedSegments];
     next[index] = !next[index];
@@ -358,14 +317,11 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
   };
 
   const handleCheck = () => {
-    if (gameOver) return;
-    setIsActive(false);
     const selectedCount = selectedSegments.filter(Boolean).length;
     const { numerator: n, denominator: d } = currentFraction;
 
     if (subdivisions < d) {
       setShowHint(true);
-      setIsActive(true);
       setTimeout(() => setShowHint(false), 2000);
       return;
     }
@@ -373,169 +329,39 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
     const scale = subdivisions / d;
     const target = n * scale;
 
+    setTotalAnswered((a) => a + 1);
+
     if (selectedCount === target) {
-      setCompletedInRound((c) => {
-        const nc = c + 1;
-        if (nc >= 10) return 0;
-        return nc;
-      });
       setTotalCompleted((t) => t + 1);
       setShowResult("correct");
       setTimeout(() => reallyGenerate(), 1500);
     } else {
-      setLives((lv) => {
-        const nl = lv - 1;
-        setShowResult("incorrect");
-        if (nl <= 0) setGameOver(true);
-        else setTimeout(() => reallyGenerate(), 1500);
-        return nl;
-      });
+      setShowResult("incorrect");
+      setTimeout(() => reallyGenerate(), 1500);
     }
   };
 
   const decSub = () => subdivisions > 1 && setSubdivisions(subdivisions - 1);
   const incSub = () => subdivisions < 20 && setSubdivisions(subdivisions + 1);
 
-  const padSm = isMobile ? 12 : 20;
-  const titleFrac = isMobile ? 32 : 48;
-  const barW = isMobile ? 96 : 140;
+  const titleFrac = isMobile ? 42 : 64;
+  const titleFracLineW = isMobile ? 68 : 92;
+  const titleEquals = isMobile ? 36 : 46;
 
-  if (gameOver) {
-    return (
-      <div
-        style={{
-          minHeight: "100%",
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: padSm,
-          background: GX.page,
-          fontFamily: FONT_UI,
-        }}
-      >
-        <div
-          style={{
-            background: "white",
-            borderRadius: 16,
-            padding: isMobile ? 24 : 32,
-            textAlign: "center",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-            maxWidth: 400,
-          }}
-        >
-          <div style={{ fontSize: 48, marginBottom: 12 }}>😵</div>
-          <h1 style={{ margin: "0 0 12px", color: "#dc2626", fontSize: isMobile ? 22 : 26 }}>Konec hry!</h1>
-          <p style={{ fontSize: 17, marginBottom: 8 }}>
-            Dokončil jsi: <strong>{totalCompleted}</strong> příkladů
-          </p>
-          <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 24 }}>Příště to určitě zvládneš lépe!</p>
-          <button
-            type="button"
-            onClick={restartGame}
-            style={{
-              background: "#16ffbc",
-              color: "#05553e",
-              border: "none",
-              borderRadius: 12,
-              padding: "14px 28px",
-              fontWeight: 700,
-              fontSize: 16,
-              cursor: "pointer",
-              width: isMobile ? "100%" : "auto",
-            }}
-          >
-            Hrát znovu
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const livesBlock = (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <span style={{ fontSize: 13, fontWeight: 600, color: GX.body, letterSpacing: "0.01em" }}>Životy</span>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          style={{
-            fontSize: isMobile ? 18 : 21,
-            lineHeight: 1,
-            color: i < lives ? "#FA5252" : GX.border,
-            opacity: i < lives ? 1 : 0.85,
-          }}
-        >
-          ♥
-        </span>
-      ))}
-    </div>
-  );
-
-  const timerBlock = (
+  const scoreRow = (
     <div
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        flex: isMobile ? "unset" : "1 1 auto",
-        justifyContent: isMobile ? "flex-start" : "center",
-        minWidth: isMobile ? undefined : 140,
-        width: isMobile ? "100%" : undefined,
+        fontSize: 16,
+        color: GX.body,
+        fontWeight: 600,
+        fontFamily: FONT_UI,
+        whiteSpace: "nowrap",
       }}
     >
-      <span style={{ fontSize: 13, fontWeight: 600, color: GX.body }}>Čas</span>
-      <div
-        style={{
-          flex: 1,
-          width: isMobile ? undefined : barW,
-          maxWidth: isMobile ? undefined : barW,
-          minWidth: 48,
-          height: 8,
-          background: GX.border,
-          borderRadius: 999,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${(timeLeft / 20) * 100}%`,
-            borderRadius: 999,
-            transition: "width 0.3s ease",
-            background: timeLeft > 5 ? GX.brand : timeLeft > 2 ? "#FAB005" : "#FA5252",
-          }}
-        />
-      </div>
-      <span style={{ fontWeight: 800, color: GX.ink, minWidth: 32, fontSize: 14, fontVariantNumeric: "tabular-nums" }}>{timeLeft}s</span>
-    </div>
-  );
-
-  const hudRow = (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: 12,
-      }}
-    >
-      {livesBlock}
-      {timerBlock}
-      <div
-        style={{
-          fontSize: 16,
-          color: GX.body,
-          fontWeight: 600,
-          fontFamily: FONT_UI,
-          whiteSpace: "nowrap",
-        }}
-      >
-        V kole{" "}
-        <strong style={{ color: GX.ink, fontSize: 17, fontWeight: 800 }}>
-          {completedInRound}/10
-        </strong>
-      </div>
+      Správně{" "}
+      <strong style={{ color: GX.ink, fontSize: 17, fontWeight: 800 }}>
+        {totalCompleted}/{totalAnswered}
+      </strong>
     </div>
   );
 
@@ -604,7 +430,7 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
         {backBtn}
         <div style={{ color: GX.ink, fontSize: 21, fontWeight: 900, lineHeight: 1.2, letterSpacing: "-0.02em", fontFamily: FONT_UI }}>Vizuální zlomky</div>
       </div>
-      {hudRow}
+      {scoreRow}
       <p
         style={{
           margin: 0,
@@ -620,12 +446,22 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
       </p>
       <h2 style={{ margin: 0, fontSize: isMobile ? 22 : 26, fontWeight: 800, color: GX.ink, fontFamily: FONT_UI }}>Zaznamenej zlomek</h2>
 
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+          flexWrap: "wrap",
+          width: "100%",
+        }}
+      >
         <div
           style={{
             background: "white",
             borderRadius: 16,
-            padding: isMobile ? 14 : 18,
+            padding: isMobile ? 16 : 22,
             border: `1px solid ${GX.border}`,
             boxShadow: GX.shadowBar,
             fontFamily: FONT_UI,
@@ -633,17 +469,34 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
         >
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: titleFrac, fontWeight: 700, color: GX.ink }}>{currentFraction.numerator}</div>
-            <div style={{ width: isMobile ? 56 : 72, height: 3, background: GX.ink, margin: "8px auto" }} />
+            <div style={{ width: titleFracLineW, height: isMobile ? 3 : 4, background: GX.ink, margin: "10px auto" }} />
             <div style={{ fontSize: titleFrac, fontWeight: 700, color: GX.ink }}>{currentFraction.denominator}</div>
           </div>
         </div>
-        <span style={{ fontSize: isMobile ? 28 : 36, fontWeight: 800, color: GX.ink, fontFamily: FONT_UI }}>=</span>
+        <span style={{ fontSize: titleEquals, fontWeight: 800, color: GX.ink, fontFamily: FONT_UI }}>=</span>
       </div>
-
-      <p style={{ margin: 0, fontSize: 13, color: GX.body, lineHeight: 1.45, fontFamily: FONT_UI }}>
-        Nejprve + přidej stejně velké dílce jako je jmenovatel (nebo násobek). Klikáním je označ v obrázku; úpravy dílků potvrď tlačítky vpravo.
-      </p>
     </div>
+  );
+
+  const vizHelpText = (
+    <p
+      style={{
+        margin: 0,
+        padding: `${8 + (isMobile ? 8 : 0)}px ${isMobile ? 8 : 16}px 0`,
+        fontSize: 14,
+        fontWeight: 700,
+        color: GX.body,
+        lineHeight: 1.4,
+        fontFamily: FONT_UI,
+        textAlign: "center",
+        maxWidth: 440,
+        width: "100%",
+        boxSizing: "border-box",
+        flexShrink: 0,
+      }}
+    >
+      Naklikej a označ
+    </p>
   );
 
   const vizActionButtons = (
@@ -707,14 +560,17 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
         display: "flex",
         flexDirection: "column",
         minWidth: 0,
-        minHeight: narrow ? 240 : 0,
+        minHeight: narrow ? 240 : 320,
         flex: 1,
-        justifyContent: "center",
+        justifyContent: "flex-start",
         alignItems: "center",
       }}
     >
-      {vizCenter}
-      {vizActionButtons}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 0, width: "100%" }}>
+        {vizCenter}
+        {vizActionButtons}
+      </div>
+      {vizHelpText}
     </div>
   );
 
@@ -773,7 +629,6 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
               padding: "24px 24px 32px",
               background: GX.page,
               borderRadius: 24,
-              border: `1px solid ${GX.border}`,
               minWidth: 0,
               minHeight: 0,
               overflow: "auto",

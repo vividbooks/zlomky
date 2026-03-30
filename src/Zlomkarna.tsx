@@ -5,15 +5,18 @@ import {
   useRef,
   useCallback,
   useId,
+  useMemo,
   type Dispatch,
   type MouseEvent,
   type SetStateAction,
   type TouchEvent,
   type RefObject,
 } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, ArrowLeft, RefreshCw } from "lucide-react";
 import { ModuleTileIllustration } from "./moduleTileIllustrations";
 import { FractionVizGame } from "./FractionVizGame";
+import { homeHref, moduleHref, parseZlomkPath, useZlomkNarrowLayout, type HomeSection } from "./zlomkarnaRoutes";
 
 // ─── Helpers ───
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -64,11 +67,15 @@ const C = {
   gray300: "#DEE2E6",
   gray400: "#ADB5BD",
   gray500: "#868E96",
+  gray600: "#6C757D",
   gray700: "#495057",
   gray900: "#212529",
   shadow: "0 4px 24px rgba(0,0,0,0.06)",
   shadowHover: "0 8px 32px rgba(0,0,0,0.10)",
 };
+
+/** Obrys výsečí a vnější kruh koláče — světle modrá (dlaždice, moduly, kvíz). */
+const PIE_SLICE_AND_RING_STROKE = C.primaryLight;
 
 /** Geometrie online / Crossroads — typografie a barvy */
 const FONT_UI = "'Fenomen Sans', ui-sans-serif, system-ui, sans-serif";
@@ -89,12 +96,20 @@ function SingleCircleUnit({
   size,
   color,
   animated,
+  sliceStroke = PIE_SLICE_AND_RING_STROKE,
+  emptyFill = "#F1F3F5",
+  emptyOpacity = 0.4,
+  outerRingStroke = PIE_SLICE_AND_RING_STROKE,
 }: {
   num: number;
   den: number;
   size: number;
   color: string;
   animated: boolean;
+  sliceStroke?: string;
+  emptyFill?: string;
+  emptyOpacity?: number;
+  outerRingStroke?: string;
 }) {
   const r = size / 2 - 8,
     cx = size / 2,
@@ -118,12 +133,12 @@ function SingleCircleUnit({
           cx={cx}
           cy={cy}
           r={r}
-          fill={filled ? color : "#F1F3F5"}
-          stroke="white"
+          fill={filled ? color : emptyFill}
+          stroke={sliceStroke}
           strokeWidth="2"
           style={{
             transition: animated ? "fill 0.4s" : "none",
-            opacity: filled ? 0.85 : 0.4,
+            opacity: filled ? 0.85 : emptyOpacity,
           }}
         />
       );
@@ -132,12 +147,12 @@ function SingleCircleUnit({
         <path
           key={i}
           d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${la} 1 ${x2} ${y2} Z`}
-          fill={filled ? color : "#F1F3F5"}
-          stroke="white"
+          fill={filled ? color : emptyFill}
+          stroke={sliceStroke}
           strokeWidth="2.5"
           style={{
             transition: animated ? "fill 0.4s, opacity 0.4s" : "none",
-            opacity: filled ? 0.85 : 0.4,
+            opacity: filled ? 0.85 : emptyOpacity,
           }}
         />
       );
@@ -145,7 +160,7 @@ function SingleCircleUnit({
   }
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
-      <circle cx={cx} cy={cy} r={r + 4} fill="none" stroke={C.gray200} strokeWidth="1" />
+      <circle cx={cx} cy={cy} r={r + 4} fill="none" stroke={outerRingStroke} strokeWidth="2" />
       {slices}
     </svg>
   );
@@ -161,6 +176,10 @@ function CircleFraction({
   label = true,
   /** >1 zvětší rozpočet pro více kruhů (např. porovnání – méně brzké zmenšení). */
   clusterSizeScale = 1,
+  sliceStroke = PIE_SLICE_AND_RING_STROKE,
+  emptyFill = "#F1F3F5",
+  emptyOpacity = 0.4,
+  outerRingStroke = PIE_SLICE_AND_RING_STROKE,
 }: {
   numerator: number;
   denominator: number;
@@ -169,6 +188,10 @@ function CircleFraction({
   animated?: boolean;
   label?: boolean;
   clusterSizeScale?: number;
+  sliceStroke?: string;
+  emptyFill?: string;
+  emptyOpacity?: number;
+  outerRingStroke?: string;
 }) {
   const parts = splitFractionUnits(numerator, denominator);
   const n = parts.length;
@@ -211,7 +234,18 @@ function CircleFraction({
         }}
       >
         {parts.map((p, idx) => (
-          <SingleCircleUnit key={`${idx}-${p.num}-${p.den}`} num={p.num} den={p.den} size={unitSize} color={color} animated={animated} />
+          <SingleCircleUnit
+            key={`${idx}-${p.num}-${p.den}`}
+            num={p.num}
+            den={p.den}
+            size={unitSize}
+            color={color}
+            animated={animated}
+            sliceStroke={sliceStroke}
+            emptyFill={emptyFill}
+            emptyOpacity={emptyOpacity}
+            outerRingStroke={outerRingStroke}
+          />
         ))}
       </div>
       {label && (
@@ -279,18 +313,21 @@ function SingleVerticalBarUnit({
   width,
   height,
   color,
+  segmentDividerStroke = "#ffffff",
 }: {
   num: number;
   den: number;
   width: number;
   height: number;
   color: string;
+  segmentDividerStroke?: string;
 }) {
   const clipId = useId().replace(/:/g, "");
   const denominator = den,
     numerator = num;
   const segH = height / denominator;
-  const emptyFill = C.gray200;
+  /** Prázdné díly — tmavší než gray200, ať jsou na světlém panelu dobře čitelné */
+  const emptyFill = "#CED4DA";
   const barRx = Math.min(28, Math.max(12, Math.round(width * 0.14)));
 
   return (
@@ -334,7 +371,7 @@ function SingleVerticalBarUnit({
                 y1={y}
                 x2={width}
                 y2={y}
-                stroke="#ffffff"
+                stroke={segmentDividerStroke}
                 strokeWidth={dividerStroke}
                 strokeLinecap="butt"
                 pointerEvents="none"
@@ -355,6 +392,7 @@ function VerticalBarFraction({
   color = C.orange,
   label = true,
   wrapMaxWidth = 520,
+  segmentDividerStroke = "#ffffff",
 }: {
   numerator: number;
   denominator: number;
@@ -363,6 +401,7 @@ function VerticalBarFraction({
   color?: string;
   label?: boolean;
   wrapMaxWidth?: number;
+  segmentDividerStroke?: string;
 }) {
   const parts = splitFractionUnits(numerator, denominator);
   const scale = parts.length > 3 ? 0.65 : parts.length > 2 ? 0.75 : parts.length > 1 ? 0.88 : 1;
@@ -388,6 +427,7 @@ function VerticalBarFraction({
             width={unitW}
             height={unitH}
             color={color}
+            segmentDividerStroke={segmentDividerStroke}
           />
         ))}
       </div>
@@ -463,6 +503,95 @@ function BarFraction({
   );
 }
 
+/**
+ * Číselná osa 0→1 výhradně pro kvíz „Poznávej zlomek“.
+ * Samostatná geometrie (nesdílí NumberLine) — vždy celá škála, „0“ a „1“ viditelné.
+ */
+function QuizIdentifyNumberLine({
+  numerator,
+  denominator,
+  axisInnerPx,
+}: {
+  numerator: number;
+  denominator: number;
+  axisInnerPx: number;
+}) {
+  const d = Math.max(1, denominator);
+  const n = Math.max(0, Math.min(numerator, d));
+  const inner = Math.max(300, Math.min(1000, axisInnerPx));
+  const m = { L: 64, R: 88, T: 48, B: 72 };
+  const W = m.L + inner + m.R;
+  const y = m.T + 44;
+  const labelY = y + 42;
+  const x0 = m.L;
+  const x1 = m.L + inner;
+  const pos = m.L + (n / d) * inner;
+  const tickMaj = 24;
+  const tickMin = 14;
+  const font = 24;
+  const H = labelY + font + 20;
+  const axisGray = "#495057";
+  const ah = 12;
+  const aw = 11;
+
+  const ticks = Array.from({ length: d + 1 }, (_, i) => {
+    const x = x0 + (i / d) * inner;
+    const major = i === 0 || i === d;
+    const h = major ? tickMaj : tickMin;
+    return (
+      <g key={i}>
+        <line
+          x1={x}
+          y1={y - h}
+          x2={x}
+          y2={y + h}
+          stroke={axisGray}
+          strokeWidth={major ? 3.5 : 2.2}
+          strokeLinecap="round"
+        />
+        {i === 0 && (
+          <text x={x} y={labelY} textAnchor="middle" fontSize={font} fontWeight="800" fill={C.gray900} fontFamily={FONT_UI}>
+            0
+          </text>
+        )}
+        {i === d && (
+          <text x={x} y={labelY} textAnchor="middle" fontSize={font} fontWeight="800" fill={C.gray900} fontFamily={FONT_UI}>
+            1
+          </text>
+        )}
+      </g>
+    );
+  });
+
+  return (
+    <svg
+      width="100%"
+      height="auto"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={`Číselná osa od 0 do 1, označeno ${n} z ${d} dílů`}
+      style={{ display: "block", overflow: "visible" }}
+    >
+      <line x1={x0} y1={y} x2={x1} y2={y} stroke={C.gray400} strokeWidth={4} strokeLinecap="round" />
+      {n > 0 && (
+        <line
+          x1={x0}
+          y1={y}
+          x2={pos}
+          y2={y}
+          stroke={C.teal}
+          strokeWidth={12}
+          strokeLinecap="round"
+        />
+      )}
+      {ticks}
+      <polygon points={`${x1},${y} ${x1 - aw},${y - ah} ${x1 - aw},${y + ah}`} fill={axisGray} />
+      <circle cx={pos} cy={y} r={15} fill={C.teal} stroke="#FFFFFF" strokeWidth={4} />
+    </svg>
+  );
+}
+
 // ─── SVG Fraction: Number Line ───
 function NumberLine({
   numerator,
@@ -472,36 +601,48 @@ function NumberLine({
   max = null,
   presentation = false,
   showPositionLabel = true,
-  /** Šedá osa jen od 0 po bod zlomku — bez „ocasu“ po správné hodnotě (kvíz Poznávej). */
-  hideAxisBeyondMarker = false,
 }: {
   numerator: number;
   denominator: number;
   width?: number;
   color?: string;
   max?: number | null;
-  /** Větší čáry a písmo pro interaktivní tabuli / celou šířku náhledu */
   presentation?: boolean;
-  /** Nad bodem na ose (n/d); v Prozkoumej může být zlomek už nahoře na ploše */
   showPositionLabel?: boolean;
-  hideAxisBeyondMarker?: boolean;
 }) {
   const padX = Math.max(
     presentation ? 88 : 48,
     Math.round(width * (presentation ? 0.11 : 0.09)),
   );
-  const h = Math.max(
-    presentation ? 176 : 92,
-    Math.min(presentation ? 340 : 200, Math.round(width * (presentation ? 0.32 : 0.19))),
-  );
-  const lineY = Math.round(h * 0.52);
-  const tickMaj = Math.round(h * 0.15);
-  const tickMin = Math.round(h * 0.09);
-  const fontWhole = Math.max(
+  const fontWholeUncapped = Math.max(
     presentation ? 26 : 13,
     Math.round(width * (presentation ? 0.048 : 0.028)),
   );
+  const fontWhole = presentation ? Math.min(48, fontWholeUncapped) : fontWholeUncapped;
   const fontFrac = Math.round(fontWhole * (presentation ? 1.12 : 1.08));
+
+  let h = Math.max(
+    presentation ? 176 : 92,
+    Math.min(presentation ? 340 : 200, Math.round(width * (presentation ? 0.32 : 0.19))),
+  );
+  let lineY = 0,
+    tickMaj = 0,
+    tickMin = 0,
+    labelBelow = 0,
+    labelAbove = 0;
+  for (let pass = 0; pass < 2; pass++) {
+    lineY = Math.round(h * 0.52);
+    tickMaj = Math.round(h * 0.15);
+    tickMin = Math.round(h * 0.09);
+    labelBelow = Math.round(h * 0.32);
+    labelAbove = Math.round(h * 0.26);
+    const bottomNeed = Math.ceil(lineY + labelBelow + fontWhole * 1.22 + 16);
+    const tickClear = Math.ceil(lineY + tickMaj + 12);
+    h = Math.max(h, bottomNeed, tickClear);
+    if (showPositionLabel) {
+      h = Math.max(h, Math.ceil((fontFrac + 16) / 0.26));
+    }
+  }
   const strokeAxisInner = presentation ? 5 : 2;
   const strokeColored = presentation ? 14 : 6;
   const strokeTickMaj = presentation ? 4 : 2;
@@ -510,15 +651,46 @@ function NumberLine({
   const aw = presentation ? 18 : 8;
   const rDot = presentation ? 16 : 7;
   const dotStroke = presentation ? 5 : 3;
-  const labelBelow = Math.round(h * 0.32);
-  const labelAbove = Math.round(h * 0.26);
 
   const effectiveMax = max ?? Math.max(1, Math.ceil(numerator / denominator));
-  const totalTicks = effectiveMax * denominator;
+  const denomSafe = Math.max(1, denominator);
+  const totalTicks = Math.max(1, effectiveMax * denomSafe);
   const w = width - padX * 2;
   const arrowTipX = width - padX;
-  const posX = padX + (totalTicks > 0 ? (numerator / totalTicks) * w : 0);
-  const axisEndX = hideAxisBeyondMarker ? posX : arrowTipX;
+  const posX = padX + (numerator / totalTicks) * w;
+
+  const tickGroups = Array.from({ length: totalTicks + 1 }, (_, i) => {
+    const x = padX + (i / totalTicks) * w,
+      isWhole = i % denominator === 0;
+    const isLastWhole = isWhole && i === totalTicks;
+    const labelAnchor = i === 0 ? ("start" as const) : isLastWhole ? ("end" as const) : ("middle" as const);
+    const labelX = i === 0 ? padX + (presentation ? 6 : 2) : isLastWhole ? padX + w - (presentation ? 6 : 2) : x;
+    return (
+      <g key={i}>
+        <line
+          x1={x}
+          y1={lineY - (isWhole ? tickMaj : tickMin)}
+          x2={x}
+          y2={lineY + (isWhole ? tickMaj : tickMin)}
+          stroke={isWhole ? C.gray700 : C.gray400}
+          strokeWidth={isWhole ? strokeTickMaj : strokeTickMin}
+        />
+        {isWhole && (
+          <text
+            x={labelX}
+            y={lineY + labelBelow}
+            textAnchor={labelAnchor}
+            fontSize={fontWhole}
+            fontWeight="700"
+            fill={C.gray700}
+            fontFamily={FONT_UI}
+          >
+            {i === 0 ? "0" : String(i / denominator)}
+          </text>
+        )}
+      </g>
+    );
+  });
 
   return (
     <div
@@ -538,81 +710,11 @@ function NumberLine({
         overflow="visible"
         style={{ display: "block", height: "auto", maxWidth: "100%", overflow: "visible" }}
       >
-        <line
-          x1={padX}
-          y1={lineY}
-          x2={axisEndX}
-          y2={lineY}
-          stroke={C.gray300}
-          strokeWidth={strokeAxisInner}
+        <line x1={padX} y1={lineY} x2={arrowTipX} y2={lineY} stroke={C.gray300} strokeWidth={strokeAxisInner} />
+        <polygon
+          points={`${arrowTipX},${lineY} ${arrowTipX - aw},${lineY - ah} ${arrowTipX - aw},${lineY + ah}`}
+          fill={C.gray400}
         />
-        {!hideAxisBeyondMarker && (
-          <polygon
-            points={`${arrowTipX},${lineY} ${arrowTipX - aw},${lineY - ah} ${arrowTipX - aw},${lineY + ah}`}
-            fill={C.gray400}
-          />
-        )}
-        {Array.from({ length: totalTicks + 1 }, (_, i) => {
-          const x = padX + (i / totalTicks) * w,
-            isWhole = i % denominator === 0;
-          const isLastWhole = isWhole && i === totalTicks;
-          if (hideAxisBeyondMarker && isLastWhole) return null;
-          if (hideAxisBeyondMarker && i > 0 && i < totalTicks && x > posX + 0.5) return null;
-          const labelAnchor = i === 0 ? ("start" as const) : isLastWhole ? ("end" as const) : ("middle" as const);
-          const labelX = i === 0 ? padX + (presentation ? 6 : 2) : isLastWhole ? padX + w - (presentation ? 6 : 2) : x;
-          return (
-            <g key={i}>
-              <line
-                x1={x}
-                y1={lineY - (isWhole ? tickMaj : tickMin)}
-                x2={x}
-                y2={lineY + (isWhole ? tickMaj : tickMin)}
-                stroke={isWhole ? C.gray700 : C.gray400}
-                strokeWidth={isWhole ? strokeTickMaj : strokeTickMin}
-              />
-              {isWhole && (
-                <text
-                  x={labelX}
-                  y={lineY + labelBelow}
-                  textAnchor={labelAnchor}
-                  fontSize={fontWhole}
-                  fontWeight="700"
-                  fill={C.gray700}
-                  fontFamily={FONT_UI}
-                >
-                  {i === 0 ? "0" : String(i / denominator)}
-                </text>
-              )}
-            </g>
-          );
-        })}
-        {hideAxisBeyondMarker && (
-          <g>
-            <line
-              x1={arrowTipX}
-              y1={lineY - tickMaj}
-              x2={arrowTipX}
-              y2={lineY + tickMaj}
-              stroke={C.gray700}
-              strokeWidth={strokeTickMaj}
-            />
-            <polygon
-              points={`${arrowTipX},${lineY} ${arrowTipX - aw},${lineY - ah} ${arrowTipX - aw},${lineY + ah}`}
-              fill={C.gray400}
-            />
-            <text
-              x={padX + w - (presentation ? 6 : 2)}
-              y={lineY + labelBelow}
-              textAnchor="end"
-              fontSize={fontWhole}
-              fontWeight="700"
-              fill={C.gray700}
-              fontFamily={FONT_UI}
-            >
-              {String(effectiveMax)}
-            </text>
-          </g>
-        )}
         {numerator > 0 && (
           <line
             x1={padX}
@@ -625,6 +727,7 @@ function NumberLine({
             style={{ transition: "all 0.4s" }}
           />
         )}
+        {tickGroups}
         <circle
           cx={posX}
           cy={lineY}
@@ -725,9 +828,11 @@ function FractionStepper({
             minW: 36,
           };
   const thickExplorerBar = stepperSize === "explorer";
+  /** Dotyk: min. ~44 CSS px (Apple / WCAG 2.5.5) */
+  const btnSize = Math.max(44, sz.btn);
   const btn = (active: boolean) => ({
-    width: sz.btn,
-    height: sz.btn,
+    width: btnSize,
+    height: btnSize,
     border: "none",
     borderRadius: sz.btnRadius,
     background: active ? color : C.gray200,
@@ -928,6 +1033,7 @@ function ModuleExplorer({
   visual: ExplorerVisual;
   onVisualChange: (v: ExplorerVisual) => void;
 }) {
+  const narrow = useZlomkNarrowLayout();
   const [num, setNum] = useState(3),
     [den, setDen] = useState(8);
   const explorerPreviewRef = useRef<HTMLDivElement>(null);
@@ -1058,23 +1164,25 @@ function ModuleExplorer({
         <div
           style={{
             flex: 1,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gridTemplateRows: "minmax(0, 1fr)",
+            display: narrow ? "flex" : "grid",
+            flexDirection: narrow ? "column" : undefined,
+            gridTemplateColumns: narrow ? undefined : "1fr 1fr",
+            gridTemplateRows: narrow ? undefined : "minmax(0, 1fr)",
             width: "100%",
             minHeight: 0,
           }}
         >
           <div
             style={{
-              gridRow: 1,
-              gridColumn: 1,
+              gridRow: narrow ? undefined : 1,
+              gridColumn: narrow ? undefined : 1,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding: "24px 24px 32px",
+              padding: narrow ? "20px 16px 24px" : "24px 24px 32px",
               background: C.gray100,
-              borderRight: `1px solid ${GX.border}`,
+              borderRight: narrow ? undefined : `1px solid ${GX.border}`,
+              borderBottom: narrow ? `1px solid ${GX.border}` : undefined,
               minWidth: 0,
               minHeight: 0,
               overflow: "auto",
@@ -1094,15 +1202,16 @@ function ModuleExplorer({
           <div
             ref={explorerPreviewRef}
             style={{
-              gridRow: 1,
-              gridColumn: 2,
+              gridRow: narrow ? undefined : 1,
+              gridColumn: narrow ? undefined : 2,
+              flex: narrow ? "1 1 0%" : undefined,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              padding: 12,
+              padding: narrow ? "16px 12px 20px" : 12,
               minWidth: 0,
-              minHeight: 0,
+              minHeight: narrow ? 200 : 0,
               overflow: "auto",
               background: GX.page,
             }}
@@ -1288,6 +1397,7 @@ function ComparePanel({
 }
 
 function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB: ExplorerVisual }) {
+  const narrow = useZlomkNarrowLayout();
   const [n1, setN1] = useState(2),
     [d1, setD1] = useState(5),
     [n2, setN2] = useState(3),
@@ -1321,10 +1431,11 @@ function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB:
           flex: 1,
           minHeight: 0,
           display: "grid",
-          gridTemplateColumns: "minmax(0,1fr) auto minmax(0,1fr)",
-          gap: 12,
+          gridTemplateColumns: narrow ? "1fr" : "minmax(0,1fr) auto minmax(0,1fr)",
+          gridTemplateRows: narrow ? "auto auto auto" : undefined,
+          gap: narrow ? 14 : 12,
           alignItems: "stretch",
-          padding: "8px 12px 16px",
+          padding: narrow ? "8px 10px max(16px, env(safe-area-inset-bottom))" : "8px 12px 16px",
         }}
       >
         <ComparePanel
@@ -1347,12 +1458,14 @@ function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB:
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
+            flexDirection: narrow ? "row" : "column",
+            flexWrap: "wrap",
             alignItems: "center",
             justifyContent: "center",
-            gap: 10,
+            gap: narrow ? 12 : 10,
             flexShrink: 0,
-            paddingTop: 24,
+            paddingTop: narrow ? 4 : 24,
+            paddingBottom: narrow ? 4 : 0,
           }}
         >
           {cmpChoices.map((sym) => {
@@ -1366,6 +1479,7 @@ function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB:
                 style={{
                   width: 62,
                   height: 62,
+                  touchAction: "manipulation",
                   borderRadius: "50%",
                   border:
                     hit && guessFeedback
@@ -1427,6 +1541,7 @@ function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB:
 
 // ─── Module: Equivalent (layout jako porovnání; uprostřed tlačítka násobku ×1–×6) ───
 function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visualB: ExplorerVisual }) {
+  const narrow = useZlomkNarrowLayout();
   const [baseN, setBaseN] = useState(1),
     [baseD, setBaseD] = useState(3),
     [multiplier, setMultiplier] = useState(1);
@@ -1460,10 +1575,11 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
           flex: 1,
           minHeight: 0,
           display: "grid",
-          gridTemplateColumns: "minmax(0,1fr) auto minmax(0,1fr)",
-          gap: 12,
+          gridTemplateColumns: narrow ? "1fr" : "minmax(0,1fr) auto minmax(0,1fr)",
+          gridTemplateRows: narrow ? "auto auto auto" : undefined,
+          gap: narrow ? 14 : 12,
           alignItems: "stretch",
-          padding: "8px 12px 16px",
+          padding: narrow ? "8px 10px max(16px, env(safe-area-inset-bottom))" : "8px 12px 16px",
         }}
       >
         <ComparePanel
@@ -1493,14 +1609,15 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
           aria-label="Násobek rozšíření zlomku"
           style={{
             display: "flex",
-            flexDirection: "column",
-            alignItems: "stretch",
+            flexDirection: narrow ? "row" : "column",
+            flexWrap: "wrap",
+            alignItems: "center",
             justifyContent: "center",
-            gap: 6,
+            gap: narrow ? 8 : 6,
             flexShrink: 0,
-            width: 64,
+            width: narrow ? "100%" : 64,
             minHeight: 0,
-            padding: "8px 4px",
+            padding: narrow ? "10px 6px" : "8px 4px",
           }}
         >
           <span
@@ -1511,6 +1628,7 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
               textTransform: "uppercase",
               letterSpacing: 0.6,
               textAlign: "center" as const,
+              width: narrow ? "100%" : undefined,
             }}
           >
             Rozšíř
@@ -1525,7 +1643,9 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
                 aria-label={`Rozšířit ${m}×`}
                 onClick={() => setMultiplier(m)}
                 style={{
-                  padding: "8px 6px",
+                  padding: narrow ? "10px 12px" : "8px 6px",
+                  minWidth: 44,
+                  minHeight: 44,
                   borderRadius: 10,
                   border: on ? `2px solid ${C.teal}` : `2px solid ${GX.border}`,
                   background: on ? C.teal : "white",
@@ -1536,6 +1656,7 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
                   fontFamily: FONT_UI,
                   boxShadow: on ? "0 2px 8px rgba(18, 184, 134, 0.35)" : "none",
                   transition: "all 0.15s",
+                  touchAction: "manipulation",
                 }}
               >
                 ×{m}
@@ -1568,6 +1689,7 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
 
 // ─── Module: Addition ───
 function ModuleAddition() {
+  const narrow = useZlomkNarrowLayout();
   const [n1, setN1] = useState(1),
     [d1, setD1] = useState(4),
     [n2, setN2] = useState(1),
@@ -1588,12 +1710,20 @@ function ModuleAddition() {
     },
   ];
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ fontSize: 26, fontWeight: 900, color: C.gray900, margin: 0 }}>Sčítání zlomků</h2>
-        <p style={{ fontSize: 15, color: C.gray500, marginTop: 6 }}>Krok za krokem</p>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: narrow ? 20 : 28,
+        paddingBottom: narrow ? "max(8px, env(safe-area-inset-bottom))" : undefined,
+        boxSizing: "border-box",
+      }}
+    >
+      <div style={{ textAlign: "center", padding: narrow ? "0 8px" : undefined }}>
+        <h2 style={{ fontSize: narrow ? 22 : 26, fontWeight: 900, color: C.gray900, margin: 0 }}>Sčítání zlomků</h2>
+        <p style={{ fontSize: narrow ? 14 : 15, color: C.gray500, marginTop: 6 }}>Krok za krokem</p>
       </div>
-      <div style={{ display: "flex", gap: 4, justifyContent: "center", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: narrow ? 6 : 4, justifyContent: "center", flexWrap: "wrap", padding: narrow ? "0 8px" : undefined }}>
         {steps.map((s, i) => (
           <button
             key={i}
@@ -1616,24 +1746,39 @@ function ModuleAddition() {
           </button>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 16, alignItems: "center" }}>
+      <div
+        style={{
+          display: narrow ? "flex" : "grid",
+          flexDirection: narrow ? "column" : undefined,
+          gridTemplateColumns: narrow ? undefined : "1fr auto 1fr",
+          gap: narrow ? 12 : 16,
+          alignItems: "center",
+          width: "100%",
+          maxWidth: "100%",
+          padding: narrow ? "0 8px" : undefined,
+          boxSizing: "border-box",
+        }}
+      >
         <div
           style={{
             background: C.card,
             borderRadius: 24,
-            padding: 20,
+            padding: narrow ? 16 : 20,
             boxShadow: C.shadow,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             gap: 12,
             border: `1px solid ${C.gray200}`,
+            width: narrow ? "100%" : undefined,
+            maxWidth: narrow ? 400 : undefined,
+            boxSizing: "border-box",
           }}
         >
           {step < 2 ? (
-            <CircleFraction numerator={n1} denominator={d1} size={120} color={C.primary} />
+            <CircleFraction numerator={n1} denominator={d1} size={narrow ? 100 : 120} color={C.primary} />
           ) : (
-            <CircleFraction numerator={nn1} denominator={cd} size={120} color={C.primary} />
+            <CircleFraction numerator={nn1} denominator={cd} size={narrow ? 100 : 120} color={C.primary} />
           )}
           {step === 0 && (
             <FractionStepper
@@ -1652,24 +1797,27 @@ function ModuleAddition() {
           )}
           {step >= 2 && <div style={{ fontSize: 14, fontWeight: 700, color: C.primary }}>{nn1}/{cd}</div>}
         </div>
-        <div style={{ fontSize: 32, fontWeight: 900, color: C.gray400 }}>+</div>
+        <div style={{ fontSize: narrow ? 28 : 32, fontWeight: 900, color: C.gray400, lineHeight: 1 }}>+</div>
         <div
           style={{
             background: C.card,
             borderRadius: 24,
-            padding: 20,
+            padding: narrow ? 16 : 20,
             boxShadow: C.shadow,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             gap: 12,
             border: `1px solid ${C.gray200}`,
+            width: narrow ? "100%" : undefined,
+            maxWidth: narrow ? 400 : undefined,
+            boxSizing: "border-box",
           }}
         >
           {step < 2 ? (
-            <CircleFraction numerator={n2} denominator={d2} size={120} color={C.orange} />
+            <CircleFraction numerator={n2} denominator={d2} size={narrow ? 100 : 120} color={C.orange} />
           ) : (
-            <CircleFraction numerator={nn2} denominator={cd} size={120} color={C.orange} />
+            <CircleFraction numerator={nn2} denominator={cd} size={narrow ? 100 : 120} color={C.orange} />
           )}
           {step === 0 && (
             <FractionStepper
@@ -1817,18 +1965,6 @@ function genIdentifyQuestion(levelIdx: number): QuizQuestion {
 
 const QUIZ_OPT_LETTERS = ["A", "B", "C", "D", "E", "F"] as const;
 
-function useQuizNarrowLayout(maxWidthPx: number) {
-  const [narrow, setNarrow] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${maxWidthPx}px)`);
-    const sync = () => setNarrow(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, [maxWidthPx]);
-  return narrow;
-}
-
 function ModuleQuiz({
   hud,
   setHud,
@@ -1838,7 +1974,7 @@ function ModuleQuiz({
   setHud: Dispatch<SetStateAction<QuizHudState>>;
   onBack: () => void;
 }) {
-  const narrow = useQuizNarrowLayout(900);
+  const narrow = useZlomkNarrowLayout();
   const previewRef = useRef<HTMLDivElement>(null);
   const [quizCircleSize, setQuizCircleSize] = useState(280);
   const [quizBarW, setQuizBarW] = useState(100);
@@ -1864,7 +2000,8 @@ function ModuleQuiz({
       const r = el.getBoundingClientRect();
       const w = Math.max(0, r.width);
       const h = Math.max(0, r.height);
-      setQuizLineW(Math.max(260, Math.min(920, Math.floor(w - 16))));
+      const baseLine = Math.max(260, Math.min(920, Math.floor(w - 16)));
+      setQuizLineW(randomVisual === "line" ? Math.min(1840, baseLine * 2) : baseLine);
       const side = Math.min(w, h || w);
       const nextCircle = Math.floor(Math.max(0, side - 12) * 0.92);
       setQuizCircleSize(Math.max(168, Math.min(540, nextCircle)));
@@ -1913,10 +2050,19 @@ function ModuleQuiz({
           minHeight: narrow ? 220 : 260,
           width: "100%",
           minWidth: 0,
+          boxSizing: "border-box",
         }}
       >
         {randomVisual === "circle" && (
-          <CircleFraction numerator={q.n1} denominator={q.d1} size={quizCircleSize} color={C.primary} label={false} />
+          <CircleFraction
+            numerator={q.n1}
+            denominator={q.d1}
+            size={quizCircleSize}
+            color={C.primary}
+            label={false}
+            emptyFill="#FFFFFF"
+            emptyOpacity={1}
+          />
         )}
         {randomVisual === "vbar" && (
           <VerticalBarFraction
@@ -1927,19 +2073,13 @@ function ModuleQuiz({
             color={C.orange}
             label={false}
             wrapMaxWidth={1200}
+            segmentDividerStroke="#FFFFFF"
           />
         )}
         {randomVisual === "line" && (
-          <NumberLine
-            numerator={q.n1}
-            denominator={q.d1}
-            width={quizLineW}
-            color={C.teal}
-            max={Math.max(1, Math.ceil(q.n1 / q.d1))}
-            presentation
-            showPositionLabel={false}
-            hideAxisBeyondMarker
-          />
+          <div style={{ width: "100%", maxWidth: "100%", minWidth: 0, padding: "8px 0 4px" }}>
+            <QuizIdentifyNumberLine numerator={q.n1} denominator={q.d1} axisInnerPx={quizLineW} />
+          </div>
         )}
       </div>
     </div>
@@ -2202,8 +2342,6 @@ function ModuleQuiz({
             padding: "24px 24px 32px",
             background: GX.page,
             borderRadius: narrow ? 0 : 24,
-            border: narrow ? "none" : `1px solid ${GX.border}`,
-            borderBottom: narrow ? `1px solid ${GX.border}` : undefined,
             minWidth: 0,
             minHeight: narrow ? undefined : 0,
             overflow: "auto",
@@ -2240,6 +2378,7 @@ function wheelAngleAccuracy(guessDeg: number, targetDeg: number): number {
 }
 
 function ModuleWheel({ onBack }: { onBack: () => void }) {
+  const narrow = useZlomkNarrowLayout();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [targetN, setTargetN] = useState(3),
     [targetD, setTargetD] = useState(4);
@@ -2357,7 +2496,13 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
   const targetEnd = needle(targetAngle, R - 5);
   const hoverEnd = needle(hoverAngle, R - 5);
 
-  const filledArc = (endAngle: number, radius: number, color: string, op = 0.2) => {
+  const filledArc = (
+    endAngle: number,
+    radius: number,
+    color: string,
+    op = 0.2,
+    opts?: { hoverPreview?: boolean }
+  ) => {
     if (endAngle < 0.5) return null;
     const ea = Math.min(endAngle, 359.99);
     const start = needle(0, radius),
@@ -2368,7 +2513,7 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
         d={`M ${CX} ${CY} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${la} 1 ${end.x} ${end.y} Z`}
         fill={color}
         opacity={op}
-        style={{ transition: "all 0.3s" }}
+        className={opts?.hoverPreview ? "zlomky-wheel-hover-fill" : undefined}
       />
     );
   };
@@ -2417,14 +2562,15 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
   const sidebar = (
     <aside
       style={{
-        width: 340,
+        width: narrow ? "100%" : 340,
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
         gap: 14,
-        maxHeight: "100%",
+        maxHeight: narrow ? "none" : "100%",
         overflowY: "auto",
-        paddingRight: 8,
+        paddingRight: narrow ? 0 : 8,
+        boxSizing: "border-box",
       }}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -2765,6 +2911,16 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+        <style type="text/css">{`
+          /* Jen opacity — geometrie se mění okamžitě; CSS transition na path „d“ bývá rozbitá i při scale. */
+          @keyframes zlomkyWheelHoverFillPulse {
+            0%, 100% { opacity: 0.24; }
+            50% { opacity: 0.44; }
+          }
+          .zlomky-wheel-hover-fill {
+            animation: zlomkyWheelHoverFillPulse 1.1s ease-in-out infinite;
+          }
+        `}</style>
       </defs>
 
       <circle cx={CX} cy={CY} r={R} fill="#FFFFFF" stroke={C.gray300} strokeWidth="2.5" />
@@ -2785,6 +2941,7 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
       {phase === "p2" && guessAngle !== null && guessEnd && filledArc(guessAngle, R - 2, P2, 0.42)}
       {phase === "results" && filledArc(Math.min(targetAngle, 359.99), R - 2, C.teal, 0.32)}
 
+      {playing && hovering && guessAngle === null && filledArc(hoverAngle, R - 2, turnAccent, 0.34, { hoverPreview: true })}
       {playing && hovering && guessAngle === null && (
         <line
           x1={CX}
@@ -2850,24 +3007,30 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
         flex: 1,
         minHeight: 0,
         display: "flex",
-        flexDirection: "row",
+        flexDirection: narrow ? "column" : "row",
         alignItems: "stretch",
-        gap: 16,
+        gap: narrow ? 12 : 16,
         width: "100%",
-        padding: "4px 8px 8px",
+        padding: narrow
+          ? "4px max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left))"
+          : "4px 8px 8px",
+        overflow: narrow ? "auto" : undefined,
+        boxSizing: "border-box",
       }}
     >
       {sidebar}
       <div
         style={{
-          flex: 1,
+          flex: narrow ? "0 0 auto" : 1,
           minWidth: 0,
+          minHeight: narrow ? 280 : undefined,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           background: "#f3f4f6",
-          borderRadius: 24,
+          borderRadius: narrow ? 16 : 24,
           border: `1px solid ${C.gray200}`,
+          padding: narrow ? "12px 8px" : undefined,
         }}
       >
         {wheelSvg}
@@ -2906,9 +3069,35 @@ const HOME_COMPETE_IDS = new Set(["wheel", "quiz", "fractionViz"]);
 const learnModules = modules.filter((m) => HOME_LEARN_IDS.has(m.id));
 const competeModules = modules.filter((m) => HOME_COMPETE_IDS.has(m.id));
 
+const ROUTER_BASENAME = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 export default function Zlomkarna() {
-  const [activeModule, setActiveModule] = useState<string | null>(null);
-  const [homeTab, setHomeTab] = useState<"learn" | "compete">("learn");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const parsed = useMemo(() => parseZlomkPath(location.pathname, ROUTER_BASENAME), [location.pathname]);
+
+  useLayoutEffect(() => {
+    if (parsed === null) {
+      navigate("/ucime-se", { replace: true });
+      return;
+    }
+    if (!parsed.moduleId) return;
+    const inLearn = HOME_LEARN_IDS.has(parsed.moduleId);
+    const inCompete = HOME_COMPETE_IDS.has(parsed.moduleId);
+    if (!inLearn && !inCompete) {
+      navigate(homeHref(parsed.section), { replace: true });
+      return;
+    }
+    const wantSection: HomeSection = inLearn ? "learn" : "compete";
+    if (parsed.section !== wantSection) {
+      navigate(moduleHref(wantSection, parsed.moduleId), { replace: true });
+    }
+  }, [parsed, navigate]);
+
+  const homeTab: "learn" | "compete" = parsed?.section === "compete" ? "compete" : "learn";
+  const activeModule = parsed?.moduleId ?? null;
+  const layoutNarrow = useZlomkNarrowLayout();
+
   const [explorerVisual, setExplorerVisual] = useState<ExplorerVisual>("circle");
   const [quizHud, setQuizHud] = useState<QuizHudState>({ diff: 0, score: 0, total: 0 });
   const [compareVisA, setCompareVisA] = useState<ExplorerVisual>("circle");
@@ -2935,28 +3124,49 @@ export default function Zlomkarna() {
 
   return (
     <div
+      className="zlomk-app-shell"
+      data-full-bleed={fullBleedModule || wheelFullLayout ? "1" : undefined}
       style={{
-        minHeight: "100vh",
-        height: fullBleedModule || wheelFullLayout ? "100vh" : undefined,
         background: GX.page,
         fontFamily: FONT_UI,
         display: "flex",
         flexDirection: "column",
         overflow: fullBleedModule || wheelFullLayout ? "hidden" : undefined,
+        paddingLeft: "max(0px, env(safe-area-inset-left))",
+        paddingRight: "max(0px, env(safe-area-inset-right))",
       }}
     >
       <style>{`
+        .zlomk-app-shell { min-height: 100vh; }
+        @supports (min-height: 100dvh) {
+          .zlomk-app-shell { min-height: 100dvh; }
+        }
+        .zlomk-app-shell[data-full-bleed="1"] {
+          height: 100vh;
+          min-height: 100vh;
+          overflow: hidden;
+        }
+        @supports (height: 100dvh) {
+          .zlomk-app-shell[data-full-bleed="1"] {
+            height: 100dvh;
+            min-height: 100dvh;
+          }
+        }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         input[type="range"]::-webkit-slider-thumb { appearance: none; width: 28px; height: 28px; border-radius: 50%; background: ${GX.brand}; cursor: pointer; border: 4px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        @media (pointer: coarse) {
+          input[type="range"]::-webkit-slider-thumb { width: 36px; height: 36px; border-width: 5px; }
+        }
         * { box-sizing: border-box; }
-        button { font-family: ${FONT_UI}; }
+        button { font-family: ${FONT_UI}; touch-action: manipulation; }
       `}</style>
 
       {activeModule && activeModule !== "wheel" && activeModule !== "quiz" && activeModule !== "fractionViz" ? (
         <header
           style={{
             borderBottom: `1px solid ${GX.border}`,
-            padding: "14px 24px",
+            padding:
+              "max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 14px max(12px, env(safe-area-inset-left))",
             background: GX.page,
             position: "sticky",
             top: 0,
@@ -2976,12 +3186,13 @@ export default function Zlomkarna() {
           >
             <button
               type="button"
-              onClick={() => setActiveModule(null)}
+              onClick={() => navigate(homeHref(parsed!.section))}
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
                 padding: "10px 16px",
+                minHeight: 44,
                 borderRadius: 9999,
                 border: `2px solid ${GX.border}`,
                 background: "white",
@@ -2991,6 +3202,7 @@ export default function Zlomkarna() {
                 cursor: "pointer",
                 transition: "all 200ms",
                 flexShrink: 0,
+                touchAction: "manipulation",
               }}
             >
               <ArrowLeft size={18} strokeWidth={2} />
@@ -3034,7 +3246,9 @@ export default function Zlomkarna() {
                   >
                     {explorerLineOnlyLayout
                       ? "Obrazovka je rozpolcená: nahoře zlomek, dole osa."
-                      : "Vlevo zlomek, vpravo náhled."}
+                      : layoutNarrow
+                        ? "Nahoře zlomek, dole náhled."
+                        : "Vlevo zlomek, vpravo náhled."}
                   </div>
                 </div>
                 <div
@@ -3237,7 +3451,8 @@ export default function Zlomkarna() {
           style={{
             maxWidth: 1100,
             margin: "0 auto",
-            padding: "24px 20px 8px",
+            padding:
+              "max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left))",
             width: "100%",
             animation: "fadeIn 0.5s",
           }}
@@ -3256,7 +3471,7 @@ export default function Zlomkarna() {
             <h1
               style={{
                 color: GX.ink,
-                fontSize: 26,
+                fontSize: layoutNarrow ? 22 : 26,
                 fontWeight: 800,
                 margin: 0,
                 letterSpacing: "-0.02em",
@@ -3271,9 +3486,10 @@ export default function Zlomkarna() {
                 type="button"
                 role="tab"
                 aria-selected={homeTab === "learn"}
-                onClick={() => setHomeTab("learn")}
+                onClick={() => navigate("/ucime-se")}
                 style={{
-                  padding: "10px 20px",
+                  padding: "12px 18px",
+                  minHeight: 44,
                   borderRadius: 9999,
                   border: homeTab === "learn" ? "2px solid transparent" : `2px solid ${GX.border}`,
                   background: homeTab === "learn" ? GX.brand : "white",
@@ -3284,6 +3500,7 @@ export default function Zlomkarna() {
                   fontFamily: FONT_UI,
                   boxShadow: homeTab === "learn" ? "0 4px 14px rgba(77, 73, 243, 0.25)" : "none",
                   transition: "all 0.2s",
+                  touchAction: "manipulation",
                 }}
               >
                 Učíme se zlomky
@@ -3292,9 +3509,10 @@ export default function Zlomkarna() {
                 type="button"
                 role="tab"
                 aria-selected={homeTab === "compete"}
-                onClick={() => setHomeTab("compete")}
+                onClick={() => navigate("/soutez")}
                 style={{
-                  padding: "10px 20px",
+                  padding: "12px 18px",
+                  minHeight: 44,
                   borderRadius: 9999,
                   border: homeTab === "compete" ? "2px solid transparent" : `2px solid ${GX.border}`,
                   background: homeTab === "compete" ? GX.brand : "white",
@@ -3305,6 +3523,7 @@ export default function Zlomkarna() {
                   fontFamily: FONT_UI,
                   boxShadow: homeTab === "compete" ? "0 4px 14px rgba(77, 73, 243, 0.25)" : "none",
                   transition: "all 0.2s",
+                  touchAction: "manipulation",
                 }}
               >
                 Soutěžíme
@@ -3314,7 +3533,7 @@ export default function Zlomkarna() {
           <h2
             style={{
               color: GX.ink,
-              fontSize: 34,
+              fontSize: layoutNarrow ? 28 : 34,
               fontWeight: 800,
               margin: "20px 0 24px",
               letterSpacing: "-0.02em",
@@ -3337,7 +3556,13 @@ export default function Zlomkarna() {
           maxWidth: fullBleedModule || wheelFullLayout ? "none" : 1044,
           width: "100%",
           margin: "0 auto",
-          padding: fullBleedModule ? 0 : wheelFullLayout ? "12px 12px 16px" : activeModule ? "24px 16px 60px" : "16px 12px 60px",
+          padding: fullBleedModule
+            ? 0
+            : wheelFullLayout
+              ? "12px max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))"
+              : activeModule
+                ? "24px max(14px, env(safe-area-inset-right)) max(60px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left))"
+                : "16px max(12px, env(safe-area-inset-right)) max(52px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))",
         }}
       >
         {!activeModule ? (
@@ -3346,14 +3571,15 @@ export default function Zlomkarna() {
               maxWidth: 1100,
               margin: "0 auto",
               width: "100%",
-              padding: "0 20px 60px",
+              padding:
+                "0 max(16px, env(safe-area-inset-right)) max(60px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))",
               animation: "fadeIn 0.5s",
             }}
           >
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 270px), 1fr))",
                 gap: 20,
               }}
             >
@@ -3361,8 +3587,8 @@ export default function Zlomkarna() {
                 return (
                   <div
                     key={mod.id}
-                    onClick={() => setActiveModule(mod.id)}
-                    onKeyDown={(e) => e.key === "Enter" && setActiveModule(mod.id)}
+                    onClick={() => navigate(moduleHref(homeTab, mod.id))}
+                    onKeyDown={(e) => e.key === "Enter" && navigate(moduleHref(homeTab, mod.id))}
                     role="button"
                     tabIndex={0}
                     style={{
@@ -3463,9 +3689,9 @@ export default function Zlomkarna() {
               <ModuleEquivalent visualA={equivVisA} visualB={equivVisB} />
             )}
             {activeModule === "addition" && <ModuleAddition />}
-            {activeModule === "wheel" && <ModuleWheel onBack={() => setActiveModule(null)} />}
-            {activeModule === "quiz" && <ModuleQuiz hud={quizHud} setHud={setQuizHud} onBack={() => setActiveModule(null)} />}
-            {activeModule === "fractionViz" && <FractionVizGame onBack={() => setActiveModule(null)} />}
+            {activeModule === "wheel" && <ModuleWheel onBack={() => navigate("/soutez")} />}
+            {activeModule === "quiz" && <ModuleQuiz hud={quizHud} setHud={setQuizHud} onBack={() => navigate("/soutez")} />}
+            {activeModule === "fractionViz" && <FractionVizGame onBack={() => navigate("/soutez")} />}
           </div>
         )}
       </div>

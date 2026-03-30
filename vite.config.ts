@@ -4,8 +4,8 @@
   import path from 'path';
 
   export default defineConfig(({ mode }) => ({
-    // Dev: /geometry-app/ (local Vividbooks platform), Prod: /rysovani-app/ (GitHub Pages)
-    base: mode === 'development' ? '/geometry-app/' : '/rysovani-app/',
+    // Dev: `/` — localhost:3000/…  |  Prod: GitHub Pages https://vividbooks.github.io/zlomky/
+    base: mode === 'development' ? '/' : '/zlomky/',
     plugins: [react()],
     css: {
       transformer: 'lightningcss',
@@ -72,7 +72,7 @@
     },
     build: {
       target: ['es2020', 'safari14'],
-      outDir: 'docs/rysovani-app', // Served at rysovani.vividbooks.com/rysovani-app/
+      outDir: 'dist',
       cssMinify: 'lightningcss',
     },
     server: {

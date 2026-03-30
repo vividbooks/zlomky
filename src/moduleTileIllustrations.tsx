@@ -2,6 +2,8 @@ import { useId, type SVGProps } from "react";
 
 const VB = "0 0 120 120";
 const FONT = "'Fenomen Sans', ui-sans-serif, system-ui, sans-serif";
+/** Světle modrý obrys koláče na dlaždicích modulů (stejná idea jako primaryLight v Zlomkarně). */
+const PIE_RING_LIGHT_BLUE = "#DBE4FF";
 
 type TileProps = SVGProps<SVGSVGElement> & { moduleId: string };
 
@@ -36,7 +38,7 @@ export function ModuleTileIllustration({ moduleId, width = 100, height = 100, ..
             </filter>
           </defs>
           <g filter={`url(#${g("ex-sh")})`}>
-            <circle cx="52" cy="56" r="34" fill="#fff" stroke="#B8C9F5" strokeWidth="2" />
+            <circle cx="52" cy="56" r="34" fill="#fff" stroke={PIE_RING_LIGHT_BLUE} strokeWidth="2" />
             <path d="M52 22 A34 34 0 0 1 86 58 L52 56 Z" fill={`url(#${g("ex-pie")})`} />
             <circle cx="52" cy="56" r="4.5" fill="#2B44A8" stroke="#fff" strokeWidth="1.5" />
           </g>
@@ -67,10 +69,10 @@ export function ModuleTileIllustration({ moduleId, width = 100, height = 100, ..
             <line x1="88" y1="44" x2="88" y2="54" stroke="#C2410C" strokeWidth="1.8" />
             <rect x="16" y="72" width="32" height="10" rx="3" fill="#FFF0E8" stroke="#F97316" strokeWidth="1.2" />
             <rect x="72" y="64" width="32" height="10" rx="3" fill="#FFF0E8" stroke="#EA580C" strokeWidth="1.2" />
-            <circle cx="32" cy="64" r="14" fill="#fff" stroke="#F97316" strokeWidth="1.8" />
+            <circle cx="32" cy="64" r="14" fill="#fff" stroke={PIE_RING_LIGHT_BLUE} strokeWidth="1.8" />
             <path d="M32 50 A14 14 0 0 1 40 72 L32 64 Z" fill="#FDBA74" />
             <circle cx="32" cy="64" r="2.5" fill="#C2410C" />
-            <circle cx="88" cy="52" r="14" fill="#fff" stroke="#EA580C" strokeWidth="1.8" />
+            <circle cx="88" cy="52" r="14" fill="#fff" stroke={PIE_RING_LIGHT_BLUE} strokeWidth="1.8" />
             <path d="M88 38 A14 14 0 0 1 102 62 L88 52 Z" fill="#FB923C" />
             <circle cx="88" cy="52" r="2.5" fill="#C2410C" />
           </g>
@@ -86,7 +88,7 @@ export function ModuleTileIllustration({ moduleId, width = 100, height = 100, ..
               <stop offset="100%" stopColor="#34D399" />
             </linearGradient>
           </defs>
-          <circle cx="30" cy="58" r="21" fill="#fff" stroke="#059669" strokeWidth="2" />
+          <circle cx="30" cy="58" r="21" fill="#fff" stroke={PIE_RING_LIGHT_BLUE} strokeWidth="2" />
           <path d="M30 37 A21 21 0 0 0 30 79 L30 58 Z" fill={`url(#${g("eq-l")})`} />
           <circle cx="30" cy="58" r="3" fill="#065F46" stroke="#fff" strokeWidth="1" />
           <g transform="translate(52, 44)">
@@ -110,13 +112,13 @@ export function ModuleTileIllustration({ moduleId, width = 100, height = 100, ..
               <stop offset="100%" stopColor="#8B5CF6" />
             </linearGradient>
           </defs>
-          <circle cx="26" cy="44" r="17" fill="#fff" stroke="#7950F2" strokeWidth="2" />
+          <circle cx="26" cy="44" r="17" fill="#fff" stroke={PIE_RING_LIGHT_BLUE} strokeWidth="2" />
           <path d="M26 27 A17 17 0 0 1 42 50 L26 44 Z" fill={`url(#${g("ad-a")})`} opacity={0.95} />
           <circle cx="26" cy="44" r="2.8" fill="#5B21B6" />
           <text x="46" y="50" fontSize="22" fontWeight="900" fill="#5B21B6" fontFamily={FONT}>
             +
           </text>
-          <circle cx="94" cy="44" r="17" fill="#fff" stroke="#7950F2" strokeWidth="2" />
+          <circle cx="94" cy="44" r="17" fill="#fff" stroke={PIE_RING_LIGHT_BLUE} strokeWidth="2" />
           <path d="M94 27 A17 17 0 0 1 110 50 L94 44 Z" fill="#A78BFA" />
           <circle cx="94" cy="44" r="2.8" fill="#5B21B6" />
           <path d="M60 66 L60 76 M54 71 L66 71" stroke="#7950F2" strokeWidth="2.5" strokeLinecap="round" />
@@ -229,7 +231,7 @@ export function ModuleTileIllustration({ moduleId, width = 100, height = 100, ..
               );
             })}
           </g>
-          <circle cx="86" cy="44" r="26" fill="#fff" stroke="#3B5BDB" strokeWidth="2" />
+          <circle cx="86" cy="44" r="26" fill="#fff" stroke={PIE_RING_LIGHT_BLUE} strokeWidth="2" />
           <path d="M86 18 A26 26 0 0 1 108 52 L86 44 Z" fill="#7CB3FF" opacity={0.9} />
           <circle cx="86" cy="44" r="4" fill="#2B44A8" stroke="#fff" strokeWidth="1.5" />
           <line x1="68" y1="92" x2="108" y2="92" stroke="#ADB5BD" strokeWidth="2" strokeLinecap="round" />

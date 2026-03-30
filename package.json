@@ -1,5 +1,5 @@
 {
-      "homepage": "https://rysovani.vividbooks.com/rysovani-app/",
+      "homepage": "https://vividbooks.github.io/zlomky/",
       "name": "zlomkarna",
       "description": "Interaktivní výuková aplikace o zlomcích (Zlomkárna)",
       "version": "0.1.0",
@@ -61,8 +61,8 @@
       },
       "scripts": {
             "dev": "vite",
-            "build": "node -e \"try{require('fs').rmSync('docs/assets',{recursive:true})}catch(e){}\" && vite build && node -e \"const fs=require('fs'); fs.copyFileSync('docs/rysovani-app/index.html','docs/rysovani-app/404.html'); fs.copyFileSync('docs/rysovani-app/index.html','docs/404.html')\"",
+            "build": "vite build && node -e \"const fs=require('fs'); const path=require('path'); const d=path.join('dist'); fs.copyFileSync(path.join(d,'index.html'),path.join(d,'404.html')); fs.writeFileSync(path.join(d,'.nojekyll'),'')\"",
             "predeploy": "npm run build",
-            "deploy": "gh-pages -d docs"
+            "deploy": "gh-pages -d dist"
       }
 }
