@@ -16,7 +16,15 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, ArrowLeft, RefreshCw } from "lucide-react";
 import { ModuleTileIllustration } from "./moduleTileIllustrations";
 import { FractionVizGame } from "./FractionVizGame";
-import { homeHref, moduleHref, parseZlomkPath, useZlomkNarrowLayout, type HomeSection } from "./zlomkarnaRoutes";
+import {
+  homeHref,
+  moduleHref,
+  parseZlomkPath,
+  useZlomkNarrowLayout,
+  useZlomkPhoneLayout,
+  ZLOMK_PHONE_BREAKPOINT_PX,
+  type HomeSection,
+} from "./zlomkarnaRoutes";
 
 // ─── Helpers ───
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -518,7 +526,7 @@ function QuizIdentifyNumberLine({
 }) {
   const d = Math.max(1, denominator);
   const n = Math.max(0, Math.min(numerator, d));
-  const inner = Math.max(300, Math.min(1000, axisInnerPx));
+  const inner = Math.max(120, Math.min(1000, axisInnerPx));
   const m = { L: 64, R: 88, T: 48, B: 72 };
   const W = m.L + inner + m.R;
   const y = m.T + 44;
@@ -1034,6 +1042,8 @@ function ModuleExplorer({
   onVisualChange: (v: ExplorerVisual) => void;
 }) {
   const narrow = useZlomkNarrowLayout();
+  const phone = useZlomkPhoneLayout();
+  const explorerStepperSize = phone ? ("explorerLine" as const) : ("explorer" as const);
   const [num, setNum] = useState(3),
     [den, setDen] = useState(8);
   const explorerPreviewRef = useRef<HTMLDivElement>(null);
@@ -1052,7 +1062,7 @@ function ModuleExplorer({
         const padX =
           (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
         const innerRaw = Math.max(0, el.clientWidth - padX);
-        setExplorerNumberLineWidth(Math.max(400, Math.min(2400, Math.floor(innerRaw))));
+        setExplorerNumberLineWidth(Math.max(200, Math.min(2400, Math.floor(innerRaw))));
       };
       update();
       const ro = new ResizeObserver(update);
@@ -1075,7 +1085,7 @@ function ModuleExplorer({
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [visual]);
+  }, [visual, phone]);
 
   return (
     <div
@@ -1106,14 +1116,14 @@ function ModuleExplorer({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              padding: "24px 24px 32px",
+              padding: phone ? "16px 12px 20px" : "24px 24px 32px",
               background: C.gray100,
               borderBottom: `3px solid ${GX.ink}`,
               overflow: "auto",
             }}
           >
             <FractionStepper
-              stepperSize="explorer"
+              stepperSize={explorerStepperSize}
               numerator={num}
               denominator={den}
               onChangeN={setNum}
@@ -1130,7 +1140,7 @@ function ModuleExplorer({
               minHeight: 0,
               width: "100%",
               boxSizing: "border-box",
-              padding: "12px 16px 16px",
+              padding: phone ? "10px 10px 14px" : "12px 16px 16px",
               background: GX.page,
               overflow: "visible",
               display: "flex",
@@ -1179,7 +1189,8 @@ function ModuleExplorer({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding: narrow ? "20px 16px 24px" : "24px 24px 32px",
+              padding:
+                narrow || phone ? "16px 12px 20px" : "24px 24px 32px",
               background: C.gray100,
               borderRight: narrow ? undefined : `1px solid ${GX.border}`,
               borderBottom: narrow ? `1px solid ${GX.border}` : undefined,
@@ -1189,7 +1200,7 @@ function ModuleExplorer({
             }}
           >
             <FractionStepper
-              stepperSize="explorer"
+              stepperSize={explorerStepperSize}
               numerator={num}
               denominator={den}
               onChangeN={setNum}
@@ -1398,6 +1409,7 @@ function ComparePanel({
 
 function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB: ExplorerVisual }) {
   const narrow = useZlomkNarrowLayout();
+  const phone = useZlomkPhoneLayout();
   const [n1, setN1] = useState(2),
     [d1, setD1] = useState(5),
     [n2, setN2] = useState(3),
@@ -1435,7 +1447,9 @@ function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB:
           gridTemplateRows: narrow ? "auto auto auto" : undefined,
           gap: narrow ? 14 : 12,
           alignItems: "stretch",
-          padding: narrow ? "8px 10px max(16px, env(safe-area-inset-bottom))" : "8px 12px 16px",
+          padding: narrow
+            ? `${phone ? 6 : 8}px max(8px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left))`
+            : "8px 12px 16px",
         }}
       >
         <ComparePanel
@@ -1542,6 +1556,7 @@ function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB:
 // ─── Module: Equivalent (layout jako porovnání; uprostřed tlačítka násobku ×1–×6) ───
 function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visualB: ExplorerVisual }) {
   const narrow = useZlomkNarrowLayout();
+  const phone = useZlomkPhoneLayout();
   const [baseN, setBaseN] = useState(1),
     [baseD, setBaseD] = useState(3),
     [multiplier, setMultiplier] = useState(1);
@@ -1579,7 +1594,9 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
           gridTemplateRows: narrow ? "auto auto auto" : undefined,
           gap: narrow ? 14 : 12,
           alignItems: "stretch",
-          padding: narrow ? "8px 10px max(16px, env(safe-area-inset-bottom))" : "8px 12px 16px",
+          padding: narrow
+            ? `${phone ? 6 : 8}px max(8px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left))`
+            : "8px 12px 16px",
         }}
       >
         <ComparePanel
@@ -1975,6 +1992,7 @@ function ModuleQuiz({
   onBack: () => void;
 }) {
   const narrow = useZlomkNarrowLayout();
+  const phone = useZlomkPhoneLayout();
   const previewRef = useRef<HTMLDivElement>(null);
   const [quizCircleSize, setQuizCircleSize] = useState(280);
   const [quizBarW, setQuizBarW] = useState(100);
@@ -2000,8 +2018,10 @@ function ModuleQuiz({
       const r = el.getBoundingClientRect();
       const w = Math.max(0, r.width);
       const h = Math.max(0, r.height);
-      const baseLine = Math.max(260, Math.min(920, Math.floor(w - 16)));
-      setQuizLineW(randomVisual === "line" ? Math.min(1840, baseLine * 2) : baseLine);
+      const baseLine = Math.max(240, Math.min(920, Math.floor(w - 12)));
+      const lineWDesktop =
+        randomVisual === "line" && !phone ? Math.min(1840, baseLine * 2) : baseLine;
+      setQuizLineW(lineWDesktop);
       const side = Math.min(w, h || w);
       const nextCircle = Math.floor(Math.max(0, side - 12) * 0.92);
       setQuizCircleSize(Math.max(168, Math.min(540, nextCircle)));
@@ -2014,7 +2034,7 @@ function ModuleQuiz({
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [randomVisual, q, narrow]);
+  }, [randomVisual, q, narrow, phone]);
   const handleAns = (idx: number) => {
     if (sel !== null || !q) return;
     setSel(idx);
@@ -2026,6 +2046,8 @@ function ModuleQuiz({
     if (idx !== q.answer) setShowExp(false);
   };
   if (!q) return null;
+  const panelPad = phone ? "16px 14px 22px" : "24px 24px 32px";
+  const panelPadPreview = phone ? "16px 14px 22px" : narrow ? "24px 24px 32px" : "40px 44px 40px";
   const assignmentPanel = (
     <div
       style={{
@@ -2047,7 +2069,7 @@ function ModuleQuiz({
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          minHeight: narrow ? 220 : 260,
+          minHeight: phone ? 180 : narrow ? 220 : 260,
           width: "100%",
           minWidth: 0,
           boxSizing: "border-box",
@@ -2125,13 +2147,17 @@ function ModuleQuiz({
       <div
         style={{
           display: "flex",
-          flexDirection: "row",
+          flexDirection: phone ? "column" : "row",
           flexWrap: "wrap",
-          alignItems: "center",
-          gap: 12,
+          alignItems: phone ? "stretch" : "center",
+          gap: phone ? 10 : 12,
         }}
       >
-        <div role="toolbar" aria-label="Úroveň obtížnosti" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <div
+          role="toolbar"
+          aria-label="Úroveň obtížnosti"
+          style={{ display: "flex", flexWrap: "wrap", gap: 6, width: phone ? "100%" : undefined }}
+        >
           {QUIZ_LEVELS.map((d, i) => {
             const on = i === hud.diff;
             return (
@@ -2141,18 +2167,22 @@ function ModuleQuiz({
                 aria-pressed={on}
                 onClick={() => setHud((h) => (i === h.diff ? h : { ...h, diff: i, score: 0, total: 0 }))}
                 style={{
-                  padding: "8px 14px",
+                  padding: phone ? "10px 12px" : "8px 14px",
+                  minHeight: phone ? 44 : undefined,
                   borderRadius: 9999,
                   border: on ? "2px solid transparent" : `2px solid ${GX.border}`,
                   background: on ? GX.brand : "white",
                   color: on ? "white" : GX.body,
                   fontWeight: 600,
-                  fontSize: 13,
+                  fontSize: phone ? 12 : 13,
                   cursor: "pointer",
                   fontFamily: FONT_UI,
                   boxShadow: on ? "0 4px 14px rgba(77, 73, 243, 0.25)" : "none",
                   transition: "all 0.2s",
-                  whiteSpace: "nowrap",
+                  whiteSpace: phone ? undefined : "nowrap",
+                  flex: phone ? "1 1 auto" : undefined,
+                  textAlign: "center" as const,
+                  touchAction: "manipulation",
                 }}
               >
                 {d.emoji} {d.label}
@@ -2162,11 +2192,12 @@ function ModuleQuiz({
         </div>
         <div
           style={{
-            fontSize: 16,
+            fontSize: phone ? 14 : 16,
             color: GX.body,
             fontWeight: 600,
             fontFamily: FONT_UI,
-            whiteSpace: "nowrap",
+            whiteSpace: phone ? undefined : "nowrap",
+            width: phone ? "100%" : undefined,
           }}
         >
           Správně{" "}
@@ -2175,7 +2206,17 @@ function ModuleQuiz({
           </strong>
         </div>
       </div>
-      <div style={{ color: GX.ink, fontSize: 17, fontWeight: 800, lineHeight: 1.35, marginTop: 4 }}>{q.text}</div>
+      <div
+        style={{
+          color: GX.ink,
+          fontSize: phone ? 16 : 17,
+          fontWeight: 800,
+          lineHeight: 1.35,
+          marginTop: 4,
+        }}
+      >
+        {q.text}
+      </div>
       {q.options.map((opt, idx) => {
         const ic = idx === q.answer,
           is = idx === sel;
@@ -2339,7 +2380,7 @@ function ModuleQuiz({
             gridColumn: 1,
             display: "flex",
             flexDirection: "column",
-            padding: "24px 24px 32px",
+            padding: panelPad,
             background: GX.page,
             borderRadius: narrow ? 0 : 24,
             minWidth: 0,
@@ -2356,7 +2397,7 @@ function ModuleQuiz({
             gridColumn: narrow ? 1 : 2,
             display: "flex",
             flexDirection: "column",
-            padding: narrow ? "24px 24px 32px" : "40px 44px 40px",
+            padding: panelPadPreview,
             background: "#f3f4f6",
             borderRadius: narrow ? 0 : 24,
             border: narrow ? "none" : `1px solid ${C.gray200}`,
@@ -2379,6 +2420,7 @@ function wheelAngleAccuracy(guessDeg: number, targetDeg: number): number {
 
 function ModuleWheel({ onBack }: { onBack: () => void }) {
   const narrow = useZlomkNarrowLayout();
+  const phone = useZlomkPhoneLayout();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [targetN, setTargetN] = useState(3),
     [targetD, setTargetD] = useState(4);
@@ -3012,7 +3054,9 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
         gap: narrow ? 12 : 16,
         width: "100%",
         padding: narrow
-          ? "4px max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left))"
+          ? `${phone ? 2 : 4}px max(${phone ? 8 : 10}px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(${
+              phone ? 8 : 10
+            }px, env(safe-area-inset-left))`
           : "4px 8px 8px",
         overflow: narrow ? "auto" : undefined,
         boxSizing: "border-box",
@@ -3023,7 +3067,7 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
         style={{
           flex: narrow ? "0 0 auto" : 1,
           minWidth: 0,
-          minHeight: narrow ? 280 : undefined,
+          minHeight: narrow ? (phone ? 240 : 280) : undefined,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -3097,6 +3141,7 @@ export default function Zlomkarna() {
   const homeTab: "learn" | "compete" = parsed?.section === "compete" ? "compete" : "learn";
   const activeModule = parsed?.moduleId ?? null;
   const layoutNarrow = useZlomkNarrowLayout();
+  const phoneLayout = useZlomkPhoneLayout();
 
   const [explorerVisual, setExplorerVisual] = useState<ExplorerVisual>("circle");
   const [quizHud, setQuizHud] = useState<QuizHudState>({ diff: 0, score: 0, total: 0 });
@@ -3152,6 +3197,16 @@ export default function Zlomkarna() {
             min-height: 100dvh;
           }
         }
+        /* Telefon: neblokovat obsah pevnou výškou — scrollovat celou stránku (Safari / malé displeje). */
+        @media (max-width: ${ZLOMK_PHONE_BREAKPOINT_PX}px) {
+          .zlomk-app-shell[data-full-bleed="1"] {
+            height: auto !important;
+            max-height: none;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+        }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         input[type="range"]::-webkit-slider-thumb { appearance: none; width: 28px; height: 28px; border-radius: 50%; background: ${GX.brand}; cursor: pointer; border: 4px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
         @media (pointer: coarse) {
@@ -3181,7 +3236,7 @@ export default function Zlomkarna() {
               alignItems: "center",
               gap: 12,
               width: "100%",
-              padding: fullBleedModule ? "0 12px" : "0 4px",
+              padding: fullBleedModule ? (phoneLayout ? "0 8px" : "0 12px") : "0 4px",
             }}
           >
             <button
@@ -3214,11 +3269,11 @@ export default function Zlomkarna() {
                   flex: 1,
                   minWidth: 0,
                   display: "flex",
-                  flexDirection: "row",
+                  flexDirection: phoneLayout ? "column" : "row",
                   flexWrap: "wrap",
-                  alignItems: "flex-start",
+                  alignItems: phoneLayout ? "stretch" : "flex-start",
                   justifyContent: "space-between",
-                  gap: 10,
+                  gap: phoneLayout ? 8 : 10,
                   padding: "2px 0",
                 }}
               >
@@ -3229,15 +3284,24 @@ export default function Zlomkarna() {
                     flexDirection: "column",
                     alignItems: "flex-start",
                     justifyContent: "center",
-                    flex: "1 1 140px",
+                    flex: phoneLayout ? "0 0 auto" : "1 1 140px",
                     minWidth: 0,
                   }}
                 >
-                  <div style={{ color: GX.ink, fontSize: 19, fontWeight: 800, lineHeight: 1.2 }}>{headerTitle}</div>
+                  <div
+                    style={{
+                      color: GX.ink,
+                      fontSize: phoneLayout ? 17 : 19,
+                      fontWeight: 800,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {headerTitle}
+                  </div>
                   <div
                     style={{
                       color: GX.body,
-                      fontSize: 12,
+                      fontSize: phoneLayout ? 11 : 12,
                       fontWeight: 500,
                       marginTop: 3,
                       lineHeight: 1.35,
@@ -3258,10 +3322,11 @@ export default function Zlomkarna() {
                     display: "flex",
                     flexWrap: "wrap",
                     gap: 6,
-                    justifyContent: "flex-end",
+                    justifyContent: phoneLayout ? "stretch" : "flex-end",
                     alignItems: "center",
                     flexShrink: 0,
-                    marginLeft: "auto",
+                    marginLeft: phoneLayout ? 0 : "auto",
+                    width: phoneLayout ? "100%" : undefined,
                   }}
                 >
                   {EXPLORER_VISUAL_TABS.map((t) => {
@@ -3274,18 +3339,22 @@ export default function Zlomkarna() {
                         aria-selected={on}
                         onClick={() => setExplorerVisual(t.id)}
                         style={{
-                          padding: "8px 14px",
+                          padding: phoneLayout ? "10px 12px" : "8px 14px",
+                          minHeight: phoneLayout ? 44 : undefined,
+                          flex: phoneLayout ? "1 1 calc(33.33% - 6px)" : undefined,
                           borderRadius: 9999,
                           border: on ? "2px solid transparent" : `2px solid ${GX.border}`,
                           background: on ? GX.brand : "white",
                           color: on ? "white" : GX.body,
                           fontWeight: 600,
-                          fontSize: 13,
+                          fontSize: phoneLayout ? 12 : 13,
                           cursor: "pointer",
                           fontFamily: FONT_UI,
                           boxShadow: on ? "0 4px 14px rgba(77, 73, 243, 0.25)" : "none",
                           transition: "all 0.2s",
-                          whiteSpace: "nowrap",
+                          whiteSpace: phoneLayout ? undefined : "nowrap",
+                          textAlign: "center" as const,
+                          touchAction: "manipulation",
                         }}
                       >
                         {t.label}
@@ -3300,11 +3369,11 @@ export default function Zlomkarna() {
                   flex: 1,
                   minWidth: 0,
                   display: "flex",
-                  flexDirection: "row",
+                  flexDirection: phoneLayout ? "column" : "row",
                   flexWrap: "wrap",
-                  alignItems: "flex-start",
+                  alignItems: phoneLayout ? "stretch" : "flex-start",
                   justifyContent: "space-between",
-                  gap: 10,
+                  gap: phoneLayout ? 8 : 10,
                   padding: "2px 0",
                 }}
               >
@@ -3315,19 +3384,32 @@ export default function Zlomkarna() {
                     flexDirection: "column",
                     alignItems: "flex-start",
                     justifyContent: "center",
-                    flex: "1 1 160px",
+                    flex: phoneLayout ? "0 0 auto" : "1 1 160px",
                     minWidth: 0,
                   }}
                 >
-                  <div style={{ color: GX.ink, fontSize: 19, fontWeight: 800, lineHeight: 1.2 }}>{headerTitle}</div>
+                  <div
+                    style={{
+                      color: GX.ink,
+                      fontSize: phoneLayout ? 17 : 19,
+                      fontWeight: 800,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {headerTitle}
+                  </div>
                   <div
                     style={{
                       color: GX.body,
-                      fontSize: 12,
+                      fontSize: phoneLayout ? 11 : 12,
                       fontWeight: 500,
                       marginTop: 3,
                       lineHeight: 1.35,
                       maxWidth: 360,
+                      display: phoneLayout ? "-webkit-box" : undefined,
+                      WebkitLineClamp: phoneLayout ? 4 : undefined,
+                      WebkitBoxOrient: phoneLayout ? "vertical" : undefined,
+                      overflow: phoneLayout ? "hidden" : undefined,
                     }}
                   >
                     {activeModule === "compare"
@@ -3342,10 +3424,11 @@ export default function Zlomkarna() {
                     display: "flex",
                     flexWrap: "wrap",
                     gap: 6,
-                    justifyContent: "flex-end",
+                    justifyContent: phoneLayout ? "stretch" : "flex-end",
                     alignItems: "center",
                     flexShrink: 0,
-                    marginLeft: "auto",
+                    marginLeft: phoneLayout ? 0 : "auto",
+                    width: phoneLayout ? "100%" : undefined,
                   }}
                 >
                   {EXPLORER_VISUAL_TABS.map((t) => {
@@ -3367,18 +3450,22 @@ export default function Zlomkarna() {
                           }
                         }}
                         style={{
-                          padding: "8px 14px",
+                          padding: phoneLayout ? "10px 12px" : "8px 14px",
+                          minHeight: phoneLayout ? 44 : undefined,
+                          flex: phoneLayout ? "1 1 calc(33.33% - 6px)" : undefined,
                           borderRadius: 9999,
                           border: on ? "2px solid transparent" : `2px solid ${GX.border}`,
                           background: on ? GX.brand : "white",
                           color: on ? "white" : GX.body,
                           fontWeight: 600,
-                          fontSize: 13,
+                          fontSize: phoneLayout ? 12 : 13,
                           cursor: "pointer",
                           fontFamily: FONT_UI,
                           boxShadow: on ? "0 4px 14px rgba(77, 73, 243, 0.25)" : "none",
                           transition: "all 0.2s",
-                          whiteSpace: "nowrap",
+                          whiteSpace: phoneLayout ? undefined : "nowrap",
+                          textAlign: "center" as const,
+                          touchAction: "manipulation",
                         }}
                       >
                         {t.label}
@@ -3402,7 +3489,10 @@ export default function Zlomkarna() {
                       display: "inline-flex",
                       alignItems: "center",
                       gap: 6,
-                      padding: "8px 14px",
+                      padding: phoneLayout ? "10px 14px" : "8px 14px",
+                      minHeight: phoneLayout ? 44 : undefined,
+                      flex: phoneLayout ? "1 1 100%" : undefined,
+                      justifyContent: "center",
                       borderRadius: 9999,
                       border:
                         (activeModule === "equivalent" ? equivUnifiedView : compareUnifiedView)
@@ -3460,11 +3550,11 @@ export default function Zlomkarna() {
           <div
             style={{
               display: "flex",
-              flexDirection: "row",
+              flexDirection: phoneLayout ? "column" : "row",
               flexWrap: "wrap",
-              alignItems: "center",
+              alignItems: phoneLayout ? "stretch" : "center",
               justifyContent: "space-between",
-              gap: 16,
+              gap: phoneLayout ? 12 : 16,
               marginBottom: 8,
             }}
           >
@@ -3481,7 +3571,11 @@ export default function Zlomkarna() {
             >
               Zlomkárna
             </h1>
-            <div role="tablist" aria-label="Hlavní sekce" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <div
+              role="tablist"
+              aria-label="Hlavní sekce"
+              style={{ display: "flex", flexWrap: "wrap", gap: 8, width: phoneLayout ? "100%" : undefined }}
+            >
               <button
                 type="button"
                 role="tab"
@@ -3490,6 +3584,7 @@ export default function Zlomkarna() {
                 style={{
                   padding: "12px 18px",
                   minHeight: 44,
+                  flex: phoneLayout ? "1 1 auto" : undefined,
                   borderRadius: 9999,
                   border: homeTab === "learn" ? "2px solid transparent" : `2px solid ${GX.border}`,
                   background: homeTab === "learn" ? GX.brand : "white",
@@ -3513,6 +3608,7 @@ export default function Zlomkarna() {
                 style={{
                   padding: "12px 18px",
                   minHeight: 44,
+                  flex: phoneLayout ? "1 1 auto" : undefined,
                   borderRadius: 9999,
                   border: homeTab === "compete" ? "2px solid transparent" : `2px solid ${GX.border}`,
                   background: homeTab === "compete" ? GX.brand : "white",

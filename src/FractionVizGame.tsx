@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useCallback, useId } from "react";
 import { ArrowLeft } from "lucide-react";
-import { ZLOMK_NARROW_BREAKPOINT_PX } from "./zlomkarnaRoutes";
+import { useZlomkPhoneLayout, ZLOMK_NARROW_BREAKPOINT_PX } from "./zlomkarnaRoutes";
 
 const FONT_UI = "'Fenomen Sans', ui-sans-serif, system-ui, sans-serif";
 
@@ -272,6 +272,8 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
   const uid = useId().replace(/:/g, "");
   const isMobile = useIsMobile();
   const narrow = useNarrowTwoCol(ZLOMK_NARROW_BREAKPOINT_PX);
+  const phone = useZlomkPhoneLayout();
+  const padStack = phone ? "16px 14px 22px" : "24px 24px 32px";
 
   const [currentFraction, setCurrentFraction] = useState<Fraction>({ numerator: 1, denominator: 4 });
   const [viewMode, setViewMode] = useState<ViewMode>("pie");
@@ -397,6 +399,7 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
         alignItems: "center",
         gap: 10,
         padding: "10px 16px",
+        minHeight: phone ? 44 : undefined,
         borderRadius: 9999,
         border: `2px solid ${GX.border}`,
         background: "white",
@@ -407,6 +410,7 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
         transition: "all 200ms",
         alignSelf: "flex-start",
         fontFamily: FONT_UI,
+        touchAction: "manipulation",
       }}
     >
       <ArrowLeft size={18} strokeWidth={2} />
@@ -597,7 +601,7 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
             style={{
               display: "flex",
               flexDirection: "column",
-              padding: "24px 24px 32px",
+              padding: padStack,
               background: PANEL_BG,
               borderBottom: `1px solid ${PANEL_BORDER}`,
               order: 1,
@@ -609,7 +613,7 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
             style={{
               display: "flex",
               flexDirection: "column",
-              padding: "24px 24px 32px",
+              padding: padStack,
               background: GX.page,
               order: 2,
               overflow: "auto",

@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 /** Pod ~1024px skládáme dvou- a tříslopcové moduly pod sebe (mobil / tablet na výšku / starší tablety). */
 export const ZLOMK_NARROW_BREAKPOINT_PX = 1024;
 
+/** Telefony a úzké portréty — extra kompaktní UI, scroll místo fixed viewport, žádné vynucené min. šířky osy. */
+export const ZLOMK_PHONE_BREAKPOINT_PX = 640;
+
 export function useZlomkNarrowLayout(breakpointPx: number = ZLOMK_NARROW_BREAKPOINT_PX) {
   const [narrow, setNarrow] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia(`(max-width: ${breakpointPx}px)`).matches : false,
@@ -15,6 +18,20 @@ export function useZlomkNarrowLayout(breakpointPx: number = ZLOMK_NARROW_BREAKPO
     return () => mq.removeEventListener("change", sync);
   }, [breakpointPx]);
   return narrow;
+}
+
+export function useZlomkPhoneLayout(breakpointPx: number = ZLOMK_PHONE_BREAKPOINT_PX) {
+  const [phone, setPhone] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(`(max-width: ${breakpointPx}px)`).matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpointPx}px)`);
+    const sync = () => setPhone(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, [breakpointPx]);
+  return phone;
 }
 
 /** Veřejné cesty Zlomkárny (relativní k `import.meta.env.BASE_URL`). */
