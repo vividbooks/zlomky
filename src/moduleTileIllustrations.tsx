@@ -59,22 +59,21 @@ export function ModuleTileIllustration({ moduleId, width = 100, height = 100, ..
               <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodOpacity="0.1" />
             </filter>
           </defs>
-          <path d="M28 48 L60 40 L92 48" fill="none" stroke="#C2410C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M60 40 L60 88" stroke="#9A3412" strokeWidth="3" strokeLinecap="round" />
-          <path d="M52 88 L68 88 L60 100 Z" fill="#EA580C" />
           <g filter={`url(#${g("cmp-sh")})`}>
-            <line x1="32" y1="48" x2="32" y2="62" stroke="#9A3412" strokeWidth="2" />
-            <ellipse cx="32" cy="66" rx="22" ry="6" fill="#FFF7ED" stroke="#EA580C" strokeWidth="1.5" />
-            <circle cx="24" cy="64" r="12" fill="#fff" stroke="#F97316" strokeWidth="1.5" />
-            <path d="M24 55 A12 12 0 0 1 32 69 L24 64 Z" fill="#FDBA74" />
-            <line x1="88" y1="48" x2="88" y2="56" stroke="#9A3412" strokeWidth="2" />
-            <ellipse cx="88" cy="60" rx="22" ry="6" fill="#FFF7ED" stroke="#EA580C" strokeWidth="1.5" />
-            <circle cx="88" cy="58" r="12" fill="#fff" stroke="#EA580C" strokeWidth="1.5" />
-            <path d="M88 46 A12 12 0 0 1 100 64 L88 58 Z" fill="#FB923C" />
+            <path d="M24 44 Q60 34 96 44" fill="none" stroke="#EA580C" strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="60" y1="44" x2="60" y2="102" stroke="#C2410C" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M52 102 H68 L60 112 Z" fill="#9A3412" />
+            <line x1="32" y1="44" x2="32" y2="54" stroke="#C2410C" strokeWidth="1.8" />
+            <line x1="88" y1="44" x2="88" y2="54" stroke="#C2410C" strokeWidth="1.8" />
+            <rect x="16" y="72" width="32" height="10" rx="3" fill="#FFF0E8" stroke="#F97316" strokeWidth="1.2" />
+            <rect x="72" y="64" width="32" height="10" rx="3" fill="#FFF0E8" stroke="#EA580C" strokeWidth="1.2" />
+            <circle cx="32" cy="64" r="14" fill="#fff" stroke="#F97316" strokeWidth="1.8" />
+            <path d="M32 50 A14 14 0 0 1 40 72 L32 64 Z" fill="#FDBA74" />
+            <circle cx="32" cy="64" r="2.5" fill="#C2410C" />
+            <circle cx="88" cy="52" r="14" fill="#fff" stroke="#EA580C" strokeWidth="1.8" />
+            <path d="M88 38 A14 14 0 0 1 102 62 L88 52 Z" fill="#FB923C" />
+            <circle cx="88" cy="52" r="2.5" fill="#C2410C" />
           </g>
-          <text x="60" y="36" textAnchor="middle" fontSize="9" fontWeight="700" fill="#9A3412" fontFamily={FONT}>
-            vs
-          </text>
         </svg>
       );
 
@@ -236,8 +235,14 @@ export function ModuleTileIllustration({ moduleId, width = 100, height = 100, ..
           <line x1="68" y1="92" x2="108" y2="92" stroke="#ADB5BD" strokeWidth="2" strokeLinecap="round" />
           <line x1="68" y1="88" x2="68" y2="96" stroke="#868E96" strokeWidth="2" strokeLinecap="round" />
           <line x1="108" y1="88" x2="108" y2="96" stroke="#868E96" strokeWidth="2" strokeLinecap="round" />
-          <circle cx="94" cy="92" r="4" fill="#FA5252" />
-          <path d="M96 76 A11 11 0 1 1 86 76" fill="none" stroke="#FA5252" strokeWidth="2.5" strokeLinecap="round" />
+          <circle cx="98" cy="78" r="3.5" fill="#FA5252" />
+          <path
+            d="M 86 78 A 12 12 0 0 1 98 66"
+            fill="none"
+            stroke="#FA5252"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
         </svg>
       );
 

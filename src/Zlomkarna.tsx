@@ -472,6 +472,8 @@ function NumberLine({
   max = null,
   presentation = false,
   showPositionLabel = true,
+  /** Šedá osa jen od 0 po bod zlomku — bez „ocasu“ po správné hodnotě (kvíz Poznávej). */
+  hideAxisBeyondMarker = false,
 }: {
   numerator: number;
   denominator: number;
@@ -482,6 +484,7 @@ function NumberLine({
   presentation?: boolean;
   /** Nad bodem na ose (n/d); v Prozkoumej může být zlomek už nahoře na ploše */
   showPositionLabel?: boolean;
+  hideAxisBeyondMarker?: boolean;
 }) {
   const padX = Math.max(
     presentation ? 88 : 48,
@@ -515,6 +518,7 @@ function NumberLine({
   const w = width - padX * 2;
   const arrowTipX = width - padX;
   const posX = padX + (totalTicks > 0 ? (numerator / totalTicks) * w : 0);
+  const axisEndX = hideAxisBeyondMarker ? posX : arrowTipX;
 
   return (
     <div
@@ -537,19 +541,23 @@ function NumberLine({
         <line
           x1={padX}
           y1={lineY}
-          x2={arrowTipX}
+          x2={axisEndX}
           y2={lineY}
           stroke={C.gray300}
           strokeWidth={strokeAxisInner}
         />
-        <polygon
-          points={`${arrowTipX},${lineY} ${arrowTipX - aw},${lineY - ah} ${arrowTipX - aw},${lineY + ah}`}
-          fill={C.gray400}
-        />
+        {!hideAxisBeyondMarker && (
+          <polygon
+            points={`${arrowTipX},${lineY} ${arrowTipX - aw},${lineY - ah} ${arrowTipX - aw},${lineY + ah}`}
+            fill={C.gray400}
+          />
+        )}
         {Array.from({ length: totalTicks + 1 }, (_, i) => {
           const x = padX + (i / totalTicks) * w,
             isWhole = i % denominator === 0;
           const isLastWhole = isWhole && i === totalTicks;
+          if (hideAxisBeyondMarker && isLastWhole) return null;
+          if (hideAxisBeyondMarker && i > 0 && i < totalTicks && x > posX + 0.5) return null;
           const labelAnchor = i === 0 ? ("start" as const) : isLastWhole ? ("end" as const) : ("middle" as const);
           const labelX = i === 0 ? padX + (presentation ? 6 : 2) : isLastWhole ? padX + w - (presentation ? 6 : 2) : x;
           return (
@@ -578,6 +586,33 @@ function NumberLine({
             </g>
           );
         })}
+        {hideAxisBeyondMarker && (
+          <g>
+            <line
+              x1={arrowTipX}
+              y1={lineY - tickMaj}
+              x2={arrowTipX}
+              y2={lineY + tickMaj}
+              stroke={C.gray700}
+              strokeWidth={strokeTickMaj}
+            />
+            <polygon
+              points={`${arrowTipX},${lineY} ${arrowTipX - aw},${lineY - ah} ${arrowTipX - aw},${lineY + ah}`}
+              fill={C.gray400}
+            />
+            <text
+              x={padX + w - (presentation ? 6 : 2)}
+              y={lineY + labelBelow}
+              textAnchor="end"
+              fontSize={fontWhole}
+              fontWeight="700"
+              fill={C.gray700}
+              fontFamily={FONT_UI}
+            >
+              {String(effectiveMax)}
+            </text>
+          </g>
+        )}
         {numerator > 0 && (
           <line
             x1={padX}
@@ -1797,9 +1832,11 @@ function useQuizNarrowLayout(maxWidthPx: number) {
 function ModuleQuiz({
   hud,
   setHud,
+  onBack,
 }: {
   hud: QuizHudState;
   setHud: Dispatch<SetStateAction<QuizHudState>>;
+  onBack: () => void;
 }) {
   const narrow = useQuizNarrowLayout(900);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -1865,7 +1902,6 @@ function ModuleQuiz({
         flex: 1,
       }}
     >
-      <div style={{ color: GX.body, fontSize: 14, fontWeight: 600, lineHeight: 1.35 }}>{q.text}</div>
       <div
         ref={previewRef}
         style={{
@@ -1902,6 +1938,7 @@ function ModuleQuiz({
             max={Math.max(1, Math.ceil(q.n1 / q.d1))}
             presentation
             showPositionLabel={false}
+            hideAxisBeyondMarker
           />
         )}
       </div>
@@ -1912,14 +1949,93 @@ function ModuleQuiz({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 12,
+        gap: 14,
         minHeight: 0,
         minWidth: 0,
         width: "100%",
         flex: 1,
       }}
     >
-      <div style={{ fontSize: 12, fontWeight: 700, color: GX.body, textTransform: "uppercase", letterSpacing: "0.06em" }}>Odpověz</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 16px",
+            borderRadius: 9999,
+            border: `2px solid ${GX.border}`,
+            background: "white",
+            color: GX.body,
+            fontSize: 15,
+            fontWeight: 600,
+            cursor: "pointer",
+            transition: "all 200ms",
+            alignSelf: "flex-start",
+            fontFamily: FONT_UI,
+          }}
+        >
+          <ArrowLeft size={18} strokeWidth={2} />
+          Zpět
+        </button>
+        <div style={{ color: GX.ink, fontSize: 21, fontWeight: 900, lineHeight: 1.2, letterSpacing: "-0.02em" }}>Poznávej zlomek</div>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <div role="toolbar" aria-label="Úroveň obtížnosti" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {QUIZ_LEVELS.map((d, i) => {
+            const on = i === hud.diff;
+            return (
+              <button
+                key={i}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setHud((h) => (i === h.diff ? h : { ...h, diff: i, score: 0, total: 0 }))}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 9999,
+                  border: on ? "2px solid transparent" : `2px solid ${GX.border}`,
+                  background: on ? GX.brand : "white",
+                  color: on ? "white" : GX.body,
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  fontFamily: FONT_UI,
+                  boxShadow: on ? "0 4px 14px rgba(77, 73, 243, 0.25)" : "none",
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {d.emoji} {d.label}
+              </button>
+            );
+          })}
+        </div>
+        <div
+          style={{
+            fontSize: 16,
+            color: GX.body,
+            fontWeight: 600,
+            fontFamily: FONT_UI,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Správně{" "}
+          <strong style={{ color: GX.ink, fontSize: 17, fontWeight: 800 }}>
+            {hud.score}/{hud.total}
+          </strong>
+        </div>
+      </div>
+      <div style={{ color: GX.ink, fontSize: 17, fontWeight: 800, lineHeight: 1.35, marginTop: 4 }}>{q.text}</div>
       {q.options.map((opt, idx) => {
         const ic = idx === q.answer,
           is = idx === sel;
@@ -2061,7 +2177,6 @@ function ModuleQuiz({
         display: "flex",
         flexDirection: "column",
         width: "100%",
-        borderTop: `1px solid ${GX.border}`,
       }}
     >
       <div
@@ -2072,39 +2187,47 @@ function ModuleQuiz({
           gridTemplateColumns: narrow ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)",
           gridTemplateRows: narrow ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)",
           width: "100%",
+          gap: narrow ? 0 : 12,
+          padding: narrow ? 0 : "24px 28px 28px",
+          boxSizing: "border-box",
         }}
       >
+        {/* Vlevo UX (odpovědi) — na desktopu 50/50 jako Zlomkové kolo; na úzkém displeji pod náhledem */}
         <div
           style={{
-            gridRow: narrow ? 1 : 1,
+            gridRow: narrow ? 2 : 1,
             gridColumn: 1,
             display: "flex",
             flexDirection: "column",
             padding: "24px 24px 32px",
-            background: C.gray100,
-            borderRight: narrow ? "none" : `1px solid ${GX.border}`,
-            borderBottom: narrow ? `1px solid ${GX.border}` : "none",
+            background: GX.page,
+            borderRadius: narrow ? 0 : 24,
+            border: narrow ? "none" : `1px solid ${GX.border}`,
+            borderBottom: narrow ? `1px solid ${GX.border}` : undefined,
             minWidth: 0,
             minHeight: narrow ? undefined : 0,
             overflow: "auto",
           }}
         >
-          {assignmentPanel}
+          {answersPanel}
         </div>
+        {/* Vpravo náhled zlomku — stejný odstín panelu jako kolo vpravo */}
         <div
           style={{
-            gridRow: narrow ? 2 : 1,
+            gridRow: narrow ? 1 : 1,
             gridColumn: narrow ? 1 : 2,
             display: "flex",
             flexDirection: "column",
-            padding: "24px 24px 32px",
-            background: GX.page,
+            padding: narrow ? "24px 24px 32px" : "40px 44px 40px",
+            background: "#f3f4f6",
+            borderRadius: narrow ? 0 : 24,
+            border: narrow ? "none" : `1px solid ${C.gray200}`,
             minWidth: 0,
             minHeight: 0,
             overflow: "auto",
           }}
         >
-          {answersPanel}
+          {assignmentPanel}
         </div>
       </div>
     </div>
@@ -2769,7 +2892,7 @@ const modules: readonly {
     desc: "Dvojuhra: jedno zadání, dva tipy, pak vyhodnocení na kole.",
     illustrationBg: "#fce7f3",
   },
-  { id: "quiz", label: "Poznávej zlomek", desc: "Přečti si náhled a vyber správný zápis zlomku.", illustrationBg: "#fefce8" },
+  { id: "quiz", label: "Poznávej zlomek", desc: "Náhled zlomku vpravo, správný zápis vybíráš vlevo.", illustrationBg: "#fefce8" },
   {
     id: "fractionViz",
     label: "Vizuální zlomky",
@@ -2808,9 +2931,7 @@ export default function Zlomkarna() {
       ? "Prozkoumej zlomek"
       : activeModule === "compare"
         ? "Porovnej zlomky"
-        : activeModule === "quiz"
-          ? "Poznávej zlomek"
-          : active?.label ?? "";
+        : active?.label ?? "";
 
   return (
     <div
@@ -2831,7 +2952,7 @@ export default function Zlomkarna() {
         button { font-family: ${FONT_UI}; }
       `}</style>
 
-      {activeModule && activeModule !== "wheel" ? (
+      {activeModule && activeModule !== "wheel" && activeModule !== "quiz" && activeModule !== "fractionViz" ? (
         <header
           style={{
             borderBottom: `1px solid ${GX.border}`,
@@ -2957,105 +3078,6 @@ export default function Zlomkarna() {
                       </button>
                     );
                   })}
-                </div>
-              </div>
-            ) : activeModule === "quiz" ? (
-              <div
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  display: "flex",
-                  flexDirection: "row",
-                  flexWrap: "wrap",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  padding: "2px 0",
-                }}
-              >
-                <div
-                  style={{
-                    textAlign: "left",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    justifyContent: "center",
-                    flex: "1 1 140px",
-                    minWidth: 0,
-                  }}
-                >
-                  <div style={{ color: GX.ink, fontSize: 19, fontWeight: 800, lineHeight: 1.2 }}>{headerTitle}</div>
-                  <div
-                    style={{
-                      color: GX.body,
-                      fontSize: 12,
-                      fontWeight: 500,
-                      marginTop: 3,
-                      lineHeight: 1.35,
-                      maxWidth: 340,
-                    }}
-                  >
-                    Vlevo náhled zlomku, vpravo zvol správný zápis.
-                  </div>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    justifyContent: "flex-end",
-                    gap: 14,
-                    flexShrink: 0,
-                    marginLeft: "auto",
-                    minWidth: 0,
-                  }}
-                >
-                  <div role="toolbar" aria-label="Úroveň obtížnosti" style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "flex-end" }}>
-                    {QUIZ_LEVELS.map((d, i) => {
-                      const on = i === quizHud.diff;
-                      return (
-                        <button
-                          key={i}
-                          type="button"
-                          aria-pressed={on}
-                          onClick={() =>
-                            setQuizHud((h) => (i === h.diff ? h : { ...h, diff: i, score: 0, total: 0 }))
-                          }
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: 9999,
-                            border: on ? "2px solid transparent" : `2px solid ${GX.border}`,
-                            background: on ? GX.brand : "white",
-                            color: on ? "white" : GX.body,
-                            fontWeight: 600,
-                            fontSize: 13,
-                            cursor: "pointer",
-                            fontFamily: FONT_UI,
-                            boxShadow: on ? "0 4px 14px rgba(77, 73, 243, 0.25)" : "none",
-                            transition: "all 0.2s",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {d.emoji} {d.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 16,
-                      color: GX.body,
-                      fontWeight: 600,
-                      fontFamily: FONT_UI,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Správně{" "}
-                    <strong style={{ color: GX.ink, fontSize: 17, fontWeight: 800 }}>
-                      {quizHud.score}/{quizHud.total}
-                    </strong>
-                  </div>
                 </div>
               </div>
             ) : activeModule === "compare" || activeModule === "equivalent" ? (
@@ -3442,8 +3464,8 @@ export default function Zlomkarna() {
             )}
             {activeModule === "addition" && <ModuleAddition />}
             {activeModule === "wheel" && <ModuleWheel onBack={() => setActiveModule(null)} />}
-            {activeModule === "quiz" && <ModuleQuiz hud={quizHud} setHud={setQuizHud} />}
-            {activeModule === "fractionViz" && <FractionVizGame />}
+            {activeModule === "quiz" && <ModuleQuiz hud={quizHud} setHud={setQuizHud} onBack={() => setActiveModule(null)} />}
+            {activeModule === "fractionViz" && <FractionVizGame onBack={() => setActiveModule(null)} />}
           </div>
         )}
       </div>

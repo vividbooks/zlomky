@@ -2,6 +2,7 @@
  * Hra „Fraction Visualization App“ — přepsáno do inline stylů pro Zlomkárnu (bez Tailwindu).
  */
 import { useState, useEffect, useCallback, useId } from "react";
+import { ArrowLeft } from "lucide-react";
 
 const FONT_UI = "'Fenomen Sans', ui-sans-serif, system-ui, sans-serif";
 
@@ -14,6 +15,21 @@ const GX = {
   page: "#ffffff",
   shadowBar: "0 1px 4px 0 rgba(0,0,0,0.06)",
 } as const;
+
+const PANEL_BG = "#f3f4f6";
+const PANEL_BORDER = "#e9ecef";
+
+function useNarrowTwoCol(maxWidthPx: number) {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${maxWidthPx}px)`);
+    const sync = () => setNarrow(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, [maxWidthPx]);
+  return narrow;
+}
 
 type Fraction = { numerator: number; denominator: number };
 type ViewMode = "pie" | "grid" | "numberline";
@@ -252,9 +268,10 @@ function NumberLineViz({
   );
 }
 
-export function FractionVizGame() {
+export function FractionVizGame({ onBack }: { onBack: () => void }) {
   const uid = useId().replace(/:/g, "");
   const isMobile = useIsMobile();
+  const narrow = useNarrowTwoCol(900);
 
   const [currentFraction, setCurrentFraction] = useState<Fraction>({ numerator: 1, denominator: 4 });
   const [viewMode, setViewMode] = useState<ViewMode>("pie");
@@ -393,7 +410,7 @@ export function FractionVizGame() {
           alignItems: "center",
           justifyContent: "center",
           padding: padSm,
-          background: "#ffeae3",
+          background: GX.page,
           fontFamily: FONT_UI,
         }}
       >
@@ -435,23 +452,6 @@ export function FractionVizGame() {
     );
   }
 
-  const scorePill = (
-    <div
-      style={{
-        background: GX.brand,
-        color: "white",
-        padding: "7px 16px",
-        borderRadius: 9999,
-        fontWeight: 700,
-        fontSize: 13,
-        boxShadow: "0 4px 14px rgba(77, 73, 243, 0.22)",
-        fontVariantNumeric: "tabular-nums",
-      }}
-    >
-      {completedInRound}/10
-    </div>
-  );
-
   const livesBlock = (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span style={{ fontSize: 13, fontWeight: 600, color: GX.body, letterSpacing: "0.01em" }}>Životy</span>
@@ -479,7 +479,7 @@ export function FractionVizGame() {
         gap: 10,
         flex: isMobile ? "unset" : "1 1 auto",
         justifyContent: isMobile ? "flex-start" : "center",
-        minWidth: isMobile ? undefined : 160,
+        minWidth: isMobile ? undefined : 140,
         width: isMobile ? "100%" : undefined,
       }}
     >
@@ -510,183 +510,296 @@ export function FractionVizGame() {
     </div>
   );
 
-  const hud = (
+  const hudRow = (
     <div
       style={{
         display: "flex",
-        flexDirection: isMobile ? "column" : "row",
-        flexWrap: "nowrap",
-        alignItems: isMobile ? "stretch" : "center",
-        justifyContent: "space-between",
-        gap: isMobile ? 12 : 16,
-        background: GX.page,
-        borderRadius: 9999,
-        padding: isMobile ? "10px 16px" : "11px 22px",
-        marginBottom: 16,
-        border: `2px solid ${GX.border}`,
-        boxShadow: GX.shadowBar,
+        flexDirection: "row",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: 12,
       }}
     >
-      {isMobile ? (
-        <>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-            {livesBlock}
-            {scorePill}
-          </div>
-          {timerBlock}
-        </>
-      ) : (
-        <>
-          {livesBlock}
-          {timerBlock}
-          {scorePill}
-        </>
-      )}
+      {livesBlock}
+      {timerBlock}
+      <div
+        style={{
+          fontSize: 16,
+          color: GX.body,
+          fontWeight: 600,
+          fontFamily: FONT_UI,
+          whiteSpace: "nowrap",
+        }}
+      >
+        V kole{" "}
+        <strong style={{ color: GX.ink, fontSize: 17, fontWeight: 800 }}>
+          {completedInRound}/10
+        </strong>
+      </div>
     </div>
   );
 
   const modeLabel =
     viewMode === "pie" ? "Koláč" : viewMode === "grid" ? "Čtverce" : "Číselná osa";
 
+  const vizCenter = (
+    <div style={{ minHeight: isMobile ? 220 : 280, display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+      {viewMode === "pie" && (
+        <PieChartViz
+          subdivisions={subdivisions}
+          selectedSegments={selectedSegments}
+          onSegmentClick={handleSegmentClick}
+          isMobile={isMobile}
+          maskPrefix={`fvz-${uid}`}
+        />
+      )}
+      {viewMode === "grid" && (
+        <GridViz subdivisions={subdivisions} selectedSegments={selectedSegments} onSegmentClick={handleSegmentClick} isMobile={isMobile} />
+      )}
+      {viewMode === "numberline" && (
+        <NumberLineViz subdivisions={subdivisions} selectedSegments={selectedSegments} onSegmentClick={handleSegmentClick} isMobile={isMobile} />
+      )}
+    </div>
+  );
+
+  const backBtn = (
+    <button
+      type="button"
+      onClick={onBack}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 16px",
+        borderRadius: 9999,
+        border: `2px solid ${GX.border}`,
+        background: "white",
+        color: GX.body,
+        fontSize: 15,
+        fontWeight: 600,
+        cursor: "pointer",
+        transition: "all 200ms",
+        alignSelf: "flex-start",
+        fontFamily: FONT_UI,
+      }}
+    >
+      <ArrowLeft size={18} strokeWidth={2} />
+      Zpět
+    </button>
+  );
+
+  const leftUx = (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        minHeight: 0,
+        minWidth: 0,
+        width: "100%",
+        flex: 1,
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {backBtn}
+        <div style={{ color: GX.ink, fontSize: 21, fontWeight: 900, lineHeight: 1.2, letterSpacing: "-0.02em", fontFamily: FONT_UI }}>Vizuální zlomky</div>
+      </div>
+      {hudRow}
+      <p
+        style={{
+          margin: 0,
+          fontSize: 13,
+          fontWeight: 700,
+          color: GX.ink,
+          textTransform: "uppercase",
+          letterSpacing: 0.6,
+          fontFamily: FONT_UI,
+        }}
+      >
+        Úkol: označ správný díl — „{modeLabel}“
+      </p>
+      <h2 style={{ margin: 0, fontSize: isMobile ? 22 : 26, fontWeight: 800, color: GX.ink, fontFamily: FONT_UI }}>Zaznamenej zlomek</h2>
+
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <div
+          style={{
+            background: "white",
+            borderRadius: 16,
+            padding: isMobile ? 14 : 18,
+            border: `1px solid ${GX.border}`,
+            boxShadow: GX.shadowBar,
+            fontFamily: FONT_UI,
+          }}
+        >
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: titleFrac, fontWeight: 700, color: GX.ink }}>{currentFraction.numerator}</div>
+            <div style={{ width: isMobile ? 56 : 72, height: 3, background: GX.ink, margin: "8px auto" }} />
+            <div style={{ fontSize: titleFrac, fontWeight: 700, color: GX.ink }}>{currentFraction.denominator}</div>
+          </div>
+        </div>
+        <span style={{ fontSize: isMobile ? 28 : 36, fontWeight: 800, color: GX.ink, fontFamily: FONT_UI }}>=</span>
+      </div>
+
+      <p style={{ margin: 0, fontSize: 13, color: GX.body, lineHeight: 1.45, fontFamily: FONT_UI }}>
+        Nejprve + přidej stejně velké dílce jako je jmenovatel (nebo násobek). Klikáním je označ v obrázku; úpravy dílků potvrď tlačítky vpravo.
+      </p>
+    </div>
+  );
+
+  const vizActionButtons = (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: isMobile ? 12 : 16, flexWrap: "wrap", marginTop: 20 }}>
+      <button
+        type="button"
+        onClick={decSub}
+        style={{
+          width: isMobile ? 52 : 56,
+          height: isMobile ? 52 : 56,
+          borderRadius: "50%",
+          border: "none",
+          background: "#4b4a5f",
+          color: "white",
+          fontSize: 26,
+          cursor: "pointer",
+        }}
+      >
+        −
+      </button>
+      <button
+        type="button"
+        onClick={incSub}
+        style={{
+          width: isMobile ? 52 : 56,
+          height: isMobile ? 52 : 56,
+          borderRadius: "50%",
+          border: "none",
+          background: "#4b4a5f",
+          color: "white",
+          fontSize: 26,
+          cursor: "pointer",
+        }}
+      >
+        +
+      </button>
+      <button
+        type="button"
+        onClick={handleCheck}
+        style={{
+          width: isMobile ? 52 : 56,
+          height: isMobile ? 52 : 56,
+          borderRadius: "50%",
+          border: "none",
+          background: "#16ffbc",
+          color: "#05553e",
+          fontSize: 22,
+          fontWeight: 800,
+          cursor: "pointer",
+          boxShadow: "0 4px 14px rgba(22,255,188,0.45)",
+        }}
+      >
+        ✓
+      </button>
+    </div>
+  );
+
+  const rightPanel = (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        minWidth: 0,
+        minHeight: narrow ? 240 : 0,
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      {vizCenter}
+      {vizActionButtons}
+    </div>
+  );
+
   return (
     <div
       style={{
         flex: 1,
         minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
-        padding: padSm,
-        background: "#ffeae3",
+        width: "100%",
+        display: narrow ? "flex" : "grid",
+        flexDirection: narrow ? "column" : undefined,
+        gridTemplateColumns: narrow ? undefined : "1fr 1fr",
+        gap: narrow ? 0 : 12,
+        padding: narrow ? 0 : "24px 28px 28px",
+        background: GX.page,
         fontFamily: FONT_UI,
         overflow: "auto",
+        boxSizing: "border-box",
       }}
     >
-      {hud}
-
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start" }}>
-        <p style={{ margin: "0 0 8px 0", fontSize: 13, fontWeight: 700, color: "#25234f", textTransform: "uppercase", letterSpacing: 0.6 }}>
-          Úkol: označ správný díl — zobrazení „{modeLabel}“
-        </p>
-        <h2 style={{ margin: "0 0 16px 0", fontSize: isMobile ? 24 : 30, fontWeight: 800, color: "#111" }}>Zaznamenej zlomek</h2>
-
-        <div
-          style={{
-            display: "flex",
-            flexDirection: isMobile ? "column" : "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: isMobile ? 16 : 28,
-            width: "100%",
-            maxWidth: 980,
-          }}
-        >
-          <div style={{ background: "white", borderRadius: isMobile ? 16 : 24, padding: isMobile ? 16 : 24, boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: titleFrac, fontWeight: 700, color: "#111" }}>{currentFraction.numerator}</div>
-              <div style={{ width: isMobile ? 56 : 80, height: 3, background: "#111", margin: "8px auto" }} />
-              <div style={{ fontSize: titleFrac, fontWeight: 700, color: "#111" }}>{currentFraction.denominator}</div>
-            </div>
-          </div>
-
-          <div style={{ fontSize: isMobile ? 36 : 44, fontWeight: 800, color: "#111" }}>=</div>
-
+      {narrow ? (
+        <>
           <div
             style={{
-              background: "white",
-              borderRadius: isMobile ? 16 : 24,
-              padding: isMobile ? 16 : 24,
-              boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
-              minWidth: 0,
-              width: "100%",
-              maxWidth: isMobile ? 400 : 520,
+              display: "flex",
+              flexDirection: "column",
+              padding: "24px 24px 32px",
+              background: PANEL_BG,
+              borderBottom: `1px solid ${PANEL_BORDER}`,
+              order: 1,
             }}
           >
-            <div style={{ minHeight: isMobile ? 220 : 280, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {viewMode === "pie" && (
-                <PieChartViz
-                  subdivisions={subdivisions}
-                  selectedSegments={selectedSegments}
-                  onSegmentClick={handleSegmentClick}
-                  isMobile={isMobile}
-                  maskPrefix={`fvz-${uid}`}
-                />
-              )}
-              {viewMode === "grid" && (
-                <GridViz
-                  subdivisions={subdivisions}
-                  selectedSegments={selectedSegments}
-                  onSegmentClick={handleSegmentClick}
-                  isMobile={isMobile}
-                />
-              )}
-              {viewMode === "numberline" && (
-                <NumberLineViz
-                  subdivisions={subdivisions}
-                  selectedSegments={selectedSegments}
-                  onSegmentClick={handleSegmentClick}
-                  isMobile={isMobile}
-                />
-              )}
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: isMobile ? 12 : 16, marginTop: 16, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={decSub}
-                style={{
-                  width: isMobile ? 52 : 56,
-                  height: isMobile ? 52 : 56,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "#4b4a5f",
-                  color: "white",
-                  fontSize: 26,
-                  cursor: "pointer",
-                }}
-              >
-                −
-              </button>
-              <button
-                type="button"
-                onClick={incSub}
-                style={{
-                  width: isMobile ? 52 : 56,
-                  height: isMobile ? 52 : 56,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "#4b4a5f",
-                  color: "white",
-                  fontSize: 26,
-                  cursor: "pointer",
-                }}
-              >
-                +
-              </button>
-              <button
-                type="button"
-                onClick={handleCheck}
-                style={{
-                  width: isMobile ? 52 : 56,
-                  height: isMobile ? 52 : 56,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "#16ffbc",
-                  color: "#05553e",
-                  fontSize: 22,
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  boxShadow: "0 4px 14px rgba(22,255,188,0.45)",
-                }}
-              >
-                ✓
-              </button>
-            </div>
-            <p style={{ margin: "12px 0 0", fontSize: 12, color: "#6b7280", textAlign: "center", lineHeight: 1.45 }}>
-              Nejprve + přidej stejně velké dílce jako je jmenovatel (nebo násobek). Klikáním je označ.
-            </p>
+            {rightPanel}
           </div>
-        </div>
-      </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              padding: "24px 24px 32px",
+              background: GX.page,
+              order: 2,
+              overflow: "auto",
+            }}
+          >
+            {leftUx}
+          </div>
+        </>
+      ) : (
+        <>
+          <div
+            style={{
+              gridRow: 1,
+              gridColumn: 1,
+              display: "flex",
+              flexDirection: "column",
+              padding: "24px 24px 32px",
+              background: GX.page,
+              borderRadius: 24,
+              border: `1px solid ${GX.border}`,
+              minWidth: 0,
+              minHeight: 0,
+              overflow: "auto",
+            }}
+          >
+            {leftUx}
+          </div>
+          <div
+            style={{
+              gridRow: 1,
+              gridColumn: 2,
+              display: "flex",
+              flexDirection: "column",
+              padding: "40px 44px 40px",
+              background: PANEL_BG,
+              borderRadius: 24,
+              border: `1px solid ${PANEL_BORDER}`,
+              minWidth: 0,
+              minHeight: 0,
+              overflow: "auto",
+            }}
+          >
+            {rightPanel}
+          </div>
+        </>
+      )}
 
       {showHint && (
         <div
