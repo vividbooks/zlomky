@@ -1,6 +1,7 @@
 {
       "homepage": "https://rysovani.vividbooks.com/rysovani-app/",
-      "name": "Matematická výuková aplikace s 3D objekty",
+      "name": "zlomkarna",
+      "description": "Interaktivní výuková aplikace o zlomcích (Zlomkárna)",
       "version": "0.1.0",
       "private": true,
       "dependencies": {
