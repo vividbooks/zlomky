@@ -10,6 +10,7 @@ import {
   type MouseEvent,
   type SetStateAction,
   type TouchEvent,
+  type ReactNode,
   type RefObject,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -539,8 +540,6 @@ function QuizIdentifyNumberLine({
   const font = 24;
   const H = labelY + font + 20;
   const axisGray = "#495057";
-  const ah = 12;
-  const aw = 11;
 
   const ticks = Array.from({ length: d + 1 }, (_, i) => {
     const x = x0 + (i / d) * inner;
@@ -594,7 +593,6 @@ function QuizIdentifyNumberLine({
         />
       )}
       {ticks}
-      <polygon points={`${x1},${y} ${x1 - aw},${y - ah} ${x1 - aw},${y + ah}`} fill={axisGray} />
       <circle cx={pos} cy={y} r={15} fill={C.teal} stroke="#FFFFFF" strokeWidth={4} />
     </svg>
   );
@@ -655,8 +653,6 @@ function NumberLine({
   const strokeColored = presentation ? 14 : 6;
   const strokeTickMaj = presentation ? 4 : 2;
   const strokeTickMin = presentation ? 2.5 : 1;
-  const ah = presentation ? 16 : 8;
-  const aw = presentation ? 18 : 8;
   const rDot = presentation ? 16 : 7;
   const dotStroke = presentation ? 5 : 3;
 
@@ -664,7 +660,7 @@ function NumberLine({
   const denomSafe = Math.max(1, denominator);
   const totalTicks = Math.max(1, effectiveMax * denomSafe);
   const w = width - padX * 2;
-  const arrowTipX = width - padX;
+  const lineRightX = width - padX;
   const posX = padX + (numerator / totalTicks) * w;
 
   const tickGroups = Array.from({ length: totalTicks + 1 }, (_, i) => {
@@ -718,11 +714,7 @@ function NumberLine({
         overflow="visible"
         style={{ display: "block", height: "auto", maxWidth: "100%", overflow: "visible" }}
       >
-        <line x1={padX} y1={lineY} x2={arrowTipX} y2={lineY} stroke={C.gray300} strokeWidth={strokeAxisInner} />
-        <polygon
-          points={`${arrowTipX},${lineY} ${arrowTipX - aw},${lineY - ah} ${arrowTipX - aw},${lineY + ah}`}
-          fill={C.gray400}
-        />
+        <line x1={padX} y1={lineY} x2={lineRightX} y2={lineY} stroke={C.gray300} strokeWidth={strokeAxisInner} />
         {numerator > 0 && (
           <line
             x1={padX}
@@ -786,10 +778,10 @@ function FractionStepper({
   minD?: number;
   maxD?: number;
   maxN?: number | null;
-  /** default = běžné moduly; explorer = velký Prozkoumej; explorerLine = menší, vejde s osou na obrazovku */
-  stepperSize?: "default" | "explorer" | "explorerLine";
+  /** default = běžné moduly; explorer = velký Prozkoumej; explorerLine = menší; comparePanel = porovnání/rozšiřování (čára pod čísly jako v Prozkoumej) */
+  stepperSize?: "default" | "explorer" | "explorerLine" | "comparePanel";
   showLabels?: boolean;
-  /** Jen zobrazení čitatele/jmenovatele bez +/− (např. rozšířený zlomek v ekvivalenci). */
+  /** Jen zobrazení čitatele/jmenovatele bez +/− (např. rozšířený zlomek v rozšiřování). */
   readOnly?: boolean;
 }) {
   const effMaxN = maxN ?? denominator * 2;
@@ -822,22 +814,39 @@ function FractionStepper({
             charW: 26,
             minW: 40,
           }
-        : {
-            btn: 36,
-            btnFont: 20,
-            btnRadius: 10,
-            numFont: 28,
-            labelSize: 11,
-            rowGap: 6,
-            lineMax: 200,
-            lineH: 3,
-            lineMargin: 10,
-            charW: 16,
-            minW: 36,
-          };
+        : stepperSize === "comparePanel"
+          ? {
+              btn: 32,
+              btnFont: 17,
+              btnRadius: 9,
+              numFont: 26,
+              labelSize: 11,
+              rowGap: 5,
+              lineMax: 200,
+              lineH: 3,
+              lineMargin: 8,
+              charW: 15,
+              minW: 32,
+            }
+          : {
+              btn: 36,
+              btnFont: 20,
+              btnRadius: 10,
+              numFont: 28,
+              labelSize: 11,
+              rowGap: 6,
+              lineMax: 200,
+              lineH: 3,
+              lineMargin: 10,
+              charW: 16,
+              minW: 36,
+            };
   const thickExplorerBar = stepperSize === "explorer";
-  /** Dotyk: min. ~44 CSS px (Apple / WCAG 2.5.5) */
-  const btnSize = Math.max(44, sz.btn);
+  const comparePanelBar = stepperSize === "comparePanel";
+  /** Výrazná zlomková čára; u comparePanel kratší — jen šířka sloupce s čísly. */
+  const prominentFractionBar = thickExplorerBar || comparePanelBar;
+  /** Dotyk: porovnání/rozšiřování má menší cíle; jinde min. ~44 px. */
+  const btnSize = comparePanelBar ? Math.max(38, sz.btn) : Math.max(44, sz.btn);
   const btn = (active: boolean) => ({
     width: btnSize,
     height: btnSize,
@@ -909,19 +918,21 @@ function FractionStepper({
         role="separator"
         aria-hidden
         style={{
-          width: "100%",
-          maxWidth: sz.lineMax,
+          width: comparePanelBar ? valueMinWidth : "100%",
+          maxWidth: comparePanelBar ? valueMinWidth : sz.lineMax,
           margin: `${sz.lineMargin}px 0`,
         }}
       >
-        {thickExplorerBar ? (
+        {prominentFractionBar ? (
           <div
             style={{
               width: "100%",
-              height: 14,
-              borderRadius: 7,
+              height: comparePanelBar ? 6 : 14,
+              borderRadius: comparePanelBar ? 3 : 7,
               background: `linear-gradient(180deg, ${GX.ink} 0%, #1e0f6e 100%)`,
-              boxShadow: `inset 0 2px 0 rgba(255,255,255,0.22), 0 0 0 1px rgba(9,5,111,0.25), 0 6px 20px rgba(77,73,243,0.35)`,
+              boxShadow: comparePanelBar
+                ? `inset 0 1px 0 rgba(255,255,255,0.2), 0 0 0 1px rgba(9,5,111,0.2), 0 3px 10px rgba(77,73,243,0.28)`
+                : `inset 0 2px 0 rgba(255,255,255,0.22), 0 0 0 1px rgba(9,5,111,0.25), 0 6px 20px rgba(77,73,243,0.35)`,
             }}
           />
         ) : (
@@ -998,6 +1009,9 @@ const EXPLORER_VISUAL_TABS: { id: ExplorerVisual; label: string }[] = [
 
 const EXPLORER_VISUAL_IDS: ExplorerVisual[] = EXPLORER_VISUAL_TABS.map((t) => t.id);
 
+/** Společná horní mez čitatele ve stepperu (Prozkoumej, Porovnej, …). */
+const ZL_STEPPER_MAX_NUMERATOR = 12;
+
 function randomExplorerVisual(): ExplorerVisual {
   return EXPLORER_VISUAL_IDS[randInt(0, EXPLORER_VISUAL_IDS.length - 1)]!;
 }
@@ -1043,7 +1057,9 @@ function ModuleExplorer({
 }) {
   const narrow = useZlomkNarrowLayout();
   const phone = useZlomkPhoneLayout();
-  const explorerStepperSize = phone ? ("explorerLine" as const) : ("explorer" as const);
+  /** U číselné osy musí být zlomek kompaktní, ať se vejde s osou na obrazovku (na desktopu jinak „explorer“ ~174px číslice). */
+  const explorerStepperSize =
+    visual === "line" || phone ? ("explorerLine" as const) : ("explorer" as const);
   const [num, setNum] = useState(3),
     [den, setDen] = useState(8);
   const explorerPreviewRef = useRef<HTMLDivElement>(null);
@@ -1110,26 +1126,27 @@ function ModuleExplorer({
         >
           <div
             style={{
-              flex: "1 1 0%",
-              minHeight: 0,
+              flex: "0 0 auto",
+              flexShrink: 0,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              padding: phone ? "16px 12px 20px" : "24px 24px 32px",
+              padding: phone ? "12px 12px 14px" : "16px 20px 18px",
               background: C.gray100,
               borderBottom: `3px solid ${GX.ink}`,
-              overflow: "auto",
+              overflow: "visible",
             }}
           >
             <FractionStepper
               stepperSize={explorerStepperSize}
               numerator={num}
               denominator={den}
+              maxN={ZL_STEPPER_MAX_NUMERATOR}
               onChangeN={setNum}
               onChangeD={(d) => {
                 setDen(d);
-                if (num > d * 2) setNum(d * 2);
+                if (num > ZL_STEPPER_MAX_NUMERATOR) setNum(ZL_STEPPER_MAX_NUMERATOR);
               }}
             />
           </div>
@@ -1203,10 +1220,11 @@ function ModuleExplorer({
               stepperSize={explorerStepperSize}
               numerator={num}
               denominator={den}
+              maxN={ZL_STEPPER_MAX_NUMERATOR}
               onChangeN={setNum}
               onChangeD={(d) => {
                 setDen(d);
-                if (num > d * 2) setNum(d * 2);
+                if (num > ZL_STEPPER_MAX_NUMERATOR) setNum(ZL_STEPPER_MAX_NUMERATOR);
               }}
             />
           </div>
@@ -1268,10 +1286,11 @@ function ComparePanel({
   visual,
   bottomRef,
   dims,
-  stepperMaxN = 12,
+  stepperMaxN = ZL_STEPPER_MAX_NUMERATOR,
   stepperMaxD = 12,
   stepperMinD = 1,
   readOnlyStepper = false,
+  hideBadge = false,
 }: {
   badge: string;
   badgeBg: string;
@@ -1289,6 +1308,7 @@ function ComparePanel({
   stepperMaxD?: number;
   stepperMinD?: number;
   readOnlyStepper?: boolean;
+  hideBadge?: boolean;
 }) {
   return (
     <div
@@ -1305,21 +1325,23 @@ function ComparePanel({
         overflow: "hidden",
       }}
     >
-      <div style={{ padding: "8px 10px 0", textAlign: "center", flexShrink: 0 }}>
-        <span
-          style={{
-            display: "inline-block",
-            background: badgeBg,
-            borderRadius: 12,
-            padding: "4px 14px",
-            fontSize: 12,
-            fontWeight: 800,
-            color,
-          }}
-        >
-          {badge}
-        </span>
-      </div>
+      {!hideBadge && (
+        <div style={{ padding: "8px 10px 0", textAlign: "center", flexShrink: 0 }}>
+          <span
+            style={{
+              display: "inline-block",
+              background: badgeBg,
+              borderRadius: 12,
+              padding: "4px 14px",
+              fontSize: 12,
+              fontWeight: 800,
+              color,
+            }}
+          >
+            {badge}
+          </span>
+        </div>
+      )}
       <div
         style={{
           flex: 1,
@@ -1342,7 +1364,7 @@ function ComparePanel({
           }}
         >
           <FractionStepper
-            stepperSize="default"
+            stepperSize="comparePanel"
             showLabels={false}
             readOnly={readOnlyStepper}
             numerator={numerator}
@@ -1422,6 +1444,11 @@ function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB:
 
   const cmp = n1 * d2 === n2 * d1 ? "=" : n1 * d2 > n2 * d1 ? ">" : "<";
 
+  /** Nová dvojice zlomků → zrušit zelené/červené podbarvení porovnávacích tlačítek. */
+  useEffect(() => {
+    setGuessFeedback(null);
+  }, [n1, d1, n2, d2]);
+
   useLayoutEffect(() => {
     const tick = () => {
       setDimsA(measureCompareBottom(bottomARef.current));
@@ -1461,13 +1488,14 @@ function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB:
           onChangeN={setN1}
           onChangeD={(d) => {
             setD1(d);
-            if (n1 > d) setN1(d);
+            if (n1 > ZL_STEPPER_MAX_NUMERATOR) setN1(ZL_STEPPER_MAX_NUMERATOR);
           }}
           color={C.primary}
           numLineColor={C.teal}
           visual={visualA}
           bottomRef={bottomARef}
           dims={dimsA}
+          stepperMaxN={ZL_STEPPER_MAX_NUMERATOR}
         />
         <div
           style={{
@@ -1516,20 +1544,6 @@ function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB:
               </button>
             );
           })}
-          {guessFeedback && (
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: guessFeedback.ok ? C.teal : C.gray600,
-                textAlign: "center",
-                maxWidth: 92,
-                lineHeight: 1.35,
-              }}
-            >
-              {guessFeedback.ok ? "Správně!" : `Zkus znovu. Je to ${cmp}.`}
-            </div>
-          )}
         </div>
         <ComparePanel
           badge="Zlomek B"
@@ -1540,20 +1554,21 @@ function ModuleCompare({ visualA, visualB }: { visualA: ExplorerVisual; visualB:
           onChangeN={setN2}
           onChangeD={(d) => {
             setD2(d);
-            if (n2 > d) setN2(d);
+            if (n2 > ZL_STEPPER_MAX_NUMERATOR) setN2(ZL_STEPPER_MAX_NUMERATOR);
           }}
           color={C.orange}
           numLineColor={C.orange}
           visual={visualB}
           bottomRef={bottomBRef}
           dims={dimsB}
+          stepperMaxN={ZL_STEPPER_MAX_NUMERATOR}
         />
       </div>
     </div>
   );
 }
 
-// ─── Module: Equivalent (layout jako porovnání; uprostřed tlačítka násobku ×1–×6) ───
+// ─── Module: Equivalent (layout jako porovnání; uprostřed tlačítka násobku · 1–· 6) ───
 function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visualB: ExplorerVisual }) {
   const narrow = useZlomkNarrowLayout();
   const phone = useZlomkPhoneLayout();
@@ -1606,7 +1621,7 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
           numerator={baseN}
           denominator={baseD}
           onChangeN={(n) => {
-            if (n > 0) setBaseN(Math.min(n, equivStepperMaxN));
+            if (n > 0) setBaseN(Math.min(n, baseD, equivStepperMaxN));
           }}
           onChangeD={(d) => {
             setBaseD(d);
@@ -1617,9 +1632,10 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
           visual={visualA}
           bottomRef={bottomARef}
           dims={dimsA}
-          stepperMaxN={equivStepperMaxN}
+          stepperMaxN={Math.min(equivStepperMaxN, baseD)}
           stepperMaxD={equivStepperMaxD}
           stepperMinD={2}
+          hideBadge
         />
         <div
           role="group"
@@ -1657,7 +1673,7 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
                 key={m}
                 type="button"
                 aria-pressed={on}
-                aria-label={`Rozšířit ${m}×`}
+                aria-label={`Rozšířit · ${m}`}
                 onClick={() => setMultiplier(m)}
                 style={{
                   padding: narrow ? "10px 12px" : "8px 6px",
@@ -1676,13 +1692,13 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
                   touchAction: "manipulation",
                 }}
               >
-                ×{m}
+                {`· ${m}`}
               </button>
             );
           })}
         </div>
         <ComparePanel
-          badge={`Stejná hodnota ×${multiplier}`}
+          badge={`Stejná hodnota · ${multiplier}`}
           badgeBg={C.tealLight}
           cardBorder={`${C.teal}55`}
           numerator={cN}
@@ -1698,9 +1714,57 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
           stepperMaxD={equivStepperMaxD * 6}
           stepperMinD={2}
           readOnlyStepper
+          hideBadge
         />
       </div>
     </div>
+  );
+}
+
+/** Zlomek zápisem se zlomkovou čárou (sčítání zlomků a popisky kroků). */
+function StackedFraction({
+  n,
+  d,
+  accent,
+  size = "md",
+}: {
+  n: number;
+  d: number;
+  accent?: string;
+  size?: "sm" | "md" | "lg" | "hero";
+}) {
+  const isHero = size === "hero";
+  const numPx = isHero ? 0 : size === "lg" ? 22 : size === "sm" ? 13 : 16;
+  const ink = accent ?? C.gray900;
+  const fontSZ: number | string = isHero ? "clamp(52px, 11vw, 76px)" : numPx;
+  const w = isHero
+    ? undefined
+    : Math.ceil(Math.max(20, String(n).length * numPx * 0.55, String(d).length * numPx * 0.55));
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "stretch",
+        justifyContent: "center",
+        verticalAlign: "middle",
+        margin: "0 3px",
+        fontFamily: FONT_UI,
+        minWidth: w,
+      }}
+    >
+      <span style={{ fontSize: fontSZ, fontWeight: 800, color: ink, textAlign: "center", lineHeight: 1.05 }}>{n}</span>
+      <span
+        style={{
+          height: isHero ? 6 : size === "lg" ? 3 : 2,
+          background: C.gray600,
+          borderRadius: 1,
+          margin: isHero ? "10px 0" : size === "lg" ? "4px 0" : "3px 0",
+          width: "100%",
+        }}
+      />
+      <span style={{ fontSize: fontSZ, fontWeight: 800, color: ink, textAlign: "center", lineHeight: 1.05 }}>{d}</span>
+    </span>
   );
 }
 
@@ -1717,13 +1781,58 @@ function ModuleAddition() {
     nn2 = n2 * (cd / d2),
     rn = nn1 + nn2;
   const [sn, sd] = simplify(rn, cd);
-  const steps = [
-    { title: "Zadej zlomky", desc: "Nastav dva zlomky" },
-    { title: "Společný jmenovatel", desc: `NSN(${d1}, ${d2}) = ${cd}` },
-    { title: "Rozšiř zlomky", desc: `${n1}/${d1} = ${nn1}/${cd}  a  ${n2}/${d2} = ${nn2}/${cd}` },
+  const steps: { title: string; desc: ReactNode | null }[] = [
+    { title: "Zadej zlomky", desc: null },
+    { title: "Najdi společného jmenovatele", desc: `nsn(${d1}, ${d2}) = ${cd}` },
+    {
+      title: "Rozšiř zlomky",
+      desc: (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 8,
+            justifyContent: "center",
+            rowGap: 6,
+          }}
+        >
+          <StackedFraction n={n1} d={d1} accent={C.primary} />
+          <span>=</span>
+          <StackedFraction n={nn1} d={cd} accent={C.primary} />
+          <span style={{ color: C.gray500 }}>a</span>
+          <StackedFraction n={n2} d={d2} accent={C.orange} />
+          <span>=</span>
+          <StackedFraction n={nn2} d={cd} accent={C.orange} />
+        </span>
+      ),
+    },
     {
       title: "Sečti čitatele",
-      desc: `${nn1}/${cd} + ${nn2}/${cd} = ${rn}/${cd}${rn !== sn ? ` = ${sn}/${sd}` : ""}`,
+      desc: (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 8,
+            justifyContent: "center",
+            rowGap: 6,
+          }}
+        >
+          <StackedFraction n={nn1} d={cd} accent={C.primary} />
+          <span>+</span>
+          <StackedFraction n={nn2} d={cd} accent={C.orange} />
+          <span>=</span>
+          <StackedFraction n={rn} d={cd} accent={C.teal} />
+          {rn !== sn && (
+            <>
+              <span>=</span>
+              <StackedFraction n={sn} d={sd} accent={C.teal} />
+            </>
+          )}
+        </span>
+      ),
     },
   ];
   return (
@@ -1793,10 +1902,14 @@ function ModuleAddition() {
           }}
         >
           {step < 2 ? (
-            <CircleFraction numerator={n1} denominator={d1} size={narrow ? 100 : 120} color={C.primary} />
+            <CircleFraction numerator={n1} denominator={d1} size={narrow ? 100 : 120} color={C.primary} label={false} />
           ) : (
-            <CircleFraction numerator={nn1} denominator={cd} size={narrow ? 100 : 120} color={C.primary} />
+            <CircleFraction numerator={nn1} denominator={cd} size={narrow ? 100 : 120} color={C.primary} label={false} />
           )}
+          {(step === 0 || step === 1) && (
+            <StackedFraction n={n1} d={d1} accent={C.primary} size="lg" />
+          )}
+          {step >= 2 && <StackedFraction n={nn1} d={cd} accent={C.primary} size="lg" />}
           {step === 0 && (
             <FractionStepper
               numerator={n1}
@@ -1812,7 +1925,6 @@ function ModuleAddition() {
               minD={2}
             />
           )}
-          {step >= 2 && <div style={{ fontSize: 14, fontWeight: 700, color: C.primary }}>{nn1}/{cd}</div>}
         </div>
         <div style={{ fontSize: narrow ? 28 : 32, fontWeight: 900, color: C.gray400, lineHeight: 1 }}>+</div>
         <div
@@ -1832,10 +1944,14 @@ function ModuleAddition() {
           }}
         >
           {step < 2 ? (
-            <CircleFraction numerator={n2} denominator={d2} size={narrow ? 100 : 120} color={C.orange} />
+            <CircleFraction numerator={n2} denominator={d2} size={narrow ? 100 : 120} color={C.orange} label={false} />
           ) : (
-            <CircleFraction numerator={nn2} denominator={cd} size={narrow ? 100 : 120} color={C.orange} />
+            <CircleFraction numerator={nn2} denominator={cd} size={narrow ? 100 : 120} color={C.orange} label={false} />
           )}
+          {(step === 0 || step === 1) && (
+            <StackedFraction n={n2} d={d2} accent={C.orange} size="lg" />
+          )}
+          {step >= 2 && <StackedFraction n={nn2} d={cd} accent={C.orange} size="lg" />}
           {step === 0 && (
             <FractionStepper
               numerator={n2}
@@ -1851,7 +1967,6 @@ function ModuleAddition() {
               minD={2}
             />
           )}
-          {step >= 2 && <div style={{ fontSize: 14, fontWeight: 700, color: C.orange }}>{nn2}/{cd}</div>}
         </div>
       </div>
       <div
@@ -1866,17 +1981,19 @@ function ModuleAddition() {
           transition: "all 0.4s",
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 800, color: C.gray900, marginBottom: 8 }}>{steps[step].title}</div>
-        <div style={{ fontSize: 15, color: C.gray700, lineHeight: 1.6 }}>{steps[step].desc}</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: C.gray900, marginBottom: steps[step].desc != null ? 8 : 0 }}>{steps[step].title}</div>
+        {steps[step].desc != null && (
+          <div style={{ fontSize: 15, color: C.gray700, lineHeight: 1.6 }}>{steps[step].desc}</div>
+        )}
         {step === 1 && (
           <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 24, flexWrap: "wrap" }}>
             <div style={{ background: C.primaryLight, borderRadius: 12, padding: "8px 20px" }}>
               <span style={{ fontWeight: 800, color: C.primary }}>{d1}</span>
-              <span style={{ color: C.gray500 }}> × {cd / d1} = {cd}</span>
+              <span style={{ color: C.gray500 }}> · {cd / d1} = {cd}</span>
             </div>
             <div style={{ background: C.orangeLight, borderRadius: 12, padding: "8px 20px" }}>
               <span style={{ fontWeight: 800, color: C.orange }}>{d2}</span>
-              <span style={{ color: C.gray500 }}> × {cd / d2} = {cd}</span>
+              <span style={{ color: C.gray500 }}> · {cd / d2} = {cd}</span>
             </div>
           </div>
         )}
@@ -1885,10 +2002,33 @@ function ModuleAddition() {
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16 }}>
               <CircleFraction numerator={rn} denominator={cd} size={100} color={C.teal} label={false} />
             </div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: C.teal, marginTop: 12 }}>
-              ={" "}
-              {rn > cd ? `${Math.floor(rn / cd)} a ${rn % cd}/${cd}` : `${rn}/${cd}`}
-              {rn !== sn && ` = ${sn}/${sd}`}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexWrap: "wrap",
+                gap: 8,
+                fontWeight: 900,
+                color: C.teal,
+                marginTop: 12,
+              }}
+            >
+              {rn > cd ? (
+                <>
+                  <span style={{ fontSize: 28, fontWeight: 900, color: C.teal }}>{Math.floor(rn / cd)}</span>
+                  <span style={{ fontSize: 20, fontWeight: 600, color: C.gray600 }}>a</span>
+                  <StackedFraction n={rn % cd} d={cd} accent={C.teal} size="lg" />
+                </>
+              ) : (
+                <StackedFraction n={rn} d={cd} accent={C.teal} size="lg" />
+              )}
+              {rn !== sn && (
+                <>
+                  <span>=</span>
+                  <StackedFraction n={sn} d={sd} accent={C.teal} size="lg" />
+                </>
+              )}
             </div>
           </div>
         )}
@@ -1941,9 +2081,9 @@ type QuizQuestion = {
   text: string;
   n1: number;
   d1: number;
-  options: string[];
+  options: { n: number; d: number }[];
   answer: number;
-  explain: string;
+  explain: ReactNode;
 };
 
 /** Sdílený stav kvízu (hlavička + ModuleQuiz). */
@@ -1965,18 +2105,23 @@ function genIdentifyQuestion(levelIdx: number): QuizQuestion {
   const d = randInt(2, Math.min(maxD, 12)),
     n = randInt(1, d - 1);
   const opts = shuffle([
-    { t: `${n}/${d}`, c: true },
-    { t: `${d}/${n}`, c: false },
-    { t: `${n}/${d + 1}`, c: false },
+    { pair: { n, d } as const, c: true },
+    { pair: { n: d, d: n } as const, c: false },
+    { pair: { n, d: d + 1 } as const, c: false },
   ]);
   return {
     type: "identify",
     text: "Který zlomek odpovídá obrázku?",
     n1: n,
     d1: d,
-    options: opts.map((o) => o.t),
+    options: opts.map((o) => o.pair),
     answer: opts.findIndex((o) => o.c),
-    explain: `Obarveno ${n} z ${d} dílů → správně je ${n}/${d}.`,
+    explain: (
+      <>
+        Obarveno {n} z {d} dílů → správně je{' '}
+        <StackedFraction n={n} d={d} accent={GX.ink} size="sm" />.
+      </>
+    ),
   };
 }
 
@@ -2274,7 +2419,9 @@ function ModuleQuiz({
             >
               {letter}
             </span>
-            <span style={{ flex: 1, minWidth: 0 }}>{opt}</span>
+            <span style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center" }}>
+              <StackedFraction n={opt.n} d={opt.d} accent={tc} size="lg" />
+            </span>
             {sel !== null && ic && <span aria-hidden>✅</span>}
             {sel !== null && is && !ic && <span aria-hidden>❌</span>}
           </button>
@@ -2429,6 +2576,8 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
   const [storedAngles, setStoredAngles] = useState<[number | null, number | null]>([null, null]);
   /** p1 = jen hráč 1, p2 = jen hráč 2 (stejné zadání), results = konec kola */
   const [phase, setPhase] = useState<"p1" | "p2" | "results">("p1");
+  /** solo = jeden tip na kolo; duo = dvojuhra */
+  const [playerMode, setPlayerMode] = useState<"solo" | "duo">("duo");
   const [matchRound, setMatchRound] = useState(0);
   const [playerTotals, setPlayerTotals] = useState<[number, number]>([0, 0]);
   const [playerRoundCounts, setPlayerRoundCounts] = useState<[number, number]>([0, 0]);
@@ -2441,11 +2590,12 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
     CY = SIZE / 2,
     R = SIZE / 2 - 28;
   const targetAngle = (targetN / targetD) * 360;
-  const activePlayer: 0 | 1 | null = phase === "p1" ? 0 : phase === "p2" ? 1 : null;
+  const activePlayer: 0 | 1 | null =
+    phase === "p1" ? 0 : phase === "p2" && playerMode === "duo" ? 1 : null;
   const P1 = C.orange;
   const P2 = C.purple;
   const turnAccent = phase === "p1" ? P1 : phase === "p2" ? P2 : C.gray600;
-  const playing = phase === "p1" || phase === "p2";
+  const playing = phase === "p1" || (playerMode === "duo" && phase === "p2");
 
   const accP1 =
     phase === "results" && storedAngles[0] !== null ? wheelAngleAccuracy(storedAngles[0], targetAngle) : null;
@@ -2508,6 +2658,16 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
 
   const handleSubmitPlay = () => {
     if (guessAngle === null || !playing || activePlayer === null) return;
+    if (phase === "p1" && playerMode === "solo") {
+      const a0 = guessAngle;
+      const s0 = Math.round(wheelAngleAccuracy(a0, targetAngle));
+      setPlayerTotals((t) => [t[0] + s0, t[1]]);
+      setPlayerRoundCounts((c) => [c[0] + 1, c[1]]);
+      setStoredAngles([a0, null]);
+      setGuessAngle(null);
+      setPhase("results");
+      return;
+    }
     if (phase === "p1") {
       setStoredAngles([guessAngle, null]);
       setGuessAngle(null);
@@ -2573,29 +2733,34 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
       <div style={{ fontSize: 11, fontWeight: 800, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em" }}>
         Zadání
       </div>
-      <div
-        style={{
-          fontSize: "clamp(52px, 11vw, 76px)",
-          fontWeight: 900,
-          color: C.primary,
-          lineHeight: 1.05,
-          marginTop: 6,
-        }}
-      >
-        {targetN}
-        <span style={{ color: C.gray400, margin: "0 0.08em", fontWeight: 800 }}>/</span>
-        {targetD}
+      <div style={{ marginTop: 6, display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <StackedFraction n={targetN} d={targetD} accent={C.primary} size="hero" />
       </div>
       {targetN > targetD && (
-        <div style={{ fontSize: 14, color: C.purple, fontWeight: 700, marginTop: 10 }}>
-          = {Math.floor(targetN / targetD)} celých a {targetN % targetD}/{targetD}
+        <div
+          style={{
+            fontSize: 14,
+            color: C.purple,
+            fontWeight: 700,
+            marginTop: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
+          <span>
+            = {Math.floor(targetN / targetD)} celých a
+          </span>
+          <StackedFraction n={targetN % targetD} d={targetD} accent={C.purple} size="md" />
         </div>
       )}
     </div>
   );
 
   let roundWinner: 0 | 1 | "tie" | null = null;
-  if (phase === "results" && accP1 !== null && accP2 !== null) {
+  if (playerMode === "duo" && phase === "results" && accP1 !== null && accP2 !== null) {
     if (accP1 > accP2) roundWinner = 0;
     else if (accP2 > accP1) roundWinner = 1;
     else roundWinner = "tie";
@@ -2646,9 +2811,56 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
 
       {zadaniHuge}
 
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ fontSize: 12, fontWeight: 800, color: C.gray500, textTransform: "uppercase" }}>Režim</span>
+        {(
+          [
+            { id: "solo" as const, label: "1 hráč" },
+            { id: "duo" as const, label: "2 hráči" },
+          ] as const
+        ).map(({ id, label }) => {
+          const on = playerMode === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setPlayerMode(id);
+                resetCompetition();
+              }}
+              style={{
+                padding: "8px 14px",
+                borderRadius: 12,
+                border: `2px solid ${on ? C.teal : C.gray200}`,
+                background: on ? C.tealLight : C.card,
+                color: on ? C.teal : C.gray500,
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: "pointer",
+                fontFamily: FONT_UI,
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       <p style={{ fontSize: 13, color: C.gray500, margin: 0, lineHeight: 1.45 }}>
-        <strong style={{ color: C.gray900 }}>Dvojuhra:</strong> jedno zadání pro oba — nejdřív hráč&nbsp;1 (oranžová), pak hráč&nbsp;2
-        (fialová) na prázdném kole, potom vyhodnocení.
+        {playerMode === "solo" ? (
+          <>
+            <strong style={{ color: C.gray900 }}>Solo:</strong> jedno zadání — ukaž na kole úhel pro{' '}
+            <span style={{ display: "inline-flex", verticalAlign: "middle", alignItems: "center" }}>
+              <StackedFraction n={targetN} d={targetD} accent={C.primary} size="sm" />
+            </span>
+            , potvrď a uvidíš správný směr a své body.
+          </>
+        ) : (
+          <>
+            <strong style={{ color: C.gray900 }}>Dvojuhra:</strong> jedno zadání pro oba — nejdřív hráč&nbsp;1 (oranžová), pak
+            hráč&nbsp;2 (fialová) na prázdném kole, potom vyhodnocení.
+          </>
+        )}
       </p>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -2677,8 +2889,14 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        {([0, 1] as const).map((pid) => {
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: playerMode === "solo" ? "1fr" : "1fr 1fr",
+          gap: 10,
+        }}
+      >
+        {(playerMode === "solo" ? ([0] as const) : ([0, 1] as const)).map((pid) => {
           const on = activePlayer === pid;
           const cnt = playerRoundCounts[pid];
           const avg = cnt > 0 ? Math.round(playerTotals[pid] / cnt) : null;
@@ -2687,6 +2905,7 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
             phase === "results" && roundWinner !== null && roundWinner !== "tie"
               ? roundWinner === pid
               : false;
+          const soloResultsHighlight = phase === "results" && playerMode === "solo" && pid === 0;
           return (
             <div
               key={pid}
@@ -2695,15 +2914,20 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
                 borderRadius: 16,
                 padding: "12px 14px",
                 border: `2px solid ${
-                  phase === "results" && wonRound ? baseBorder : on && playing ? baseBorder : C.gray200
+                  phase === "results" && (wonRound || soloResultsHighlight)
+                    ? baseBorder
+                    : on && playing
+                      ? baseBorder
+                      : C.gray200
                 }`,
                 boxShadow:
                   on && playing
                     ? `0 0 0 3px ${baseBorder}22`
-                    : phase === "results" && wonRound
+                    : phase === "results" && (wonRound || soloResultsHighlight)
                       ? `0 0 0 4px ${baseBorder}55`
                       : undefined,
-                opacity: phase === "results" && roundWinner !== "tie" && !wonRound ? 0.72 : 1,
+                opacity:
+                  playerMode === "duo" && phase === "results" && roundWinner !== "tie" && !wonRound ? 0.72 : 1,
               }}
             >
               <div style={{ fontSize: 11, fontWeight: 800, color: C.gray500, textTransform: "uppercase" }}>
@@ -2717,11 +2941,11 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.gray500 }}> b</span>
               </div>
               <div style={{ fontSize: 12, color: C.gray500, marginTop: 4 }}>
-                {cnt > 0 && avg !== null ? `Průměr ${avg}% · ${cnt} kol` : "Zatím nehrál"}
+                {cnt > 0 && avg !== null ? `Průměr ${avg} % · ${cnt} kol` : "Zatím nehrál"}
               </div>
               {phase === "results" && (pid === 0 ? accP1 : accP2) !== null && (
                 <div style={{ fontSize: 13, fontWeight: 800, color: C.gray700, marginTop: 6 }}>
-                  Toto kolo: {Math.round((pid === 0 ? accP1 : accP2) as number)}%
+                  Toto kolo: {Math.round((pid === 0 ? accP1 : accP2) as number)} %
                 </div>
               )}
             </div>
@@ -2743,7 +2967,7 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
         >
           {phase === "p1" ? (
             <>
-              Tah <span style={{ color: P1 }}>hráče 1</span>
+              Tah <span style={{ color: P1 }}>{playerMode === "solo" ? "tvůj" : "hráče 1"}</span>
               <span style={{ fontWeight: 600, color: C.gray500, fontSize: 13 }}> — klikni na kolo vpravo</span>
             </>
           ) : (
@@ -2755,7 +2979,56 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
-      {phase === "results" && accP1 !== null && accP2 !== null && roundWinner !== null && (
+      {phase === "results" && playerMode === "solo" && accP1 !== null && (
+        <div
+          style={{
+            animation: "fadeIn 0.45s",
+            borderRadius: 18,
+            padding: 16,
+            background: C.gray100,
+            border: `1px solid ${C.gray200}`,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 800, color: C.gray500, textTransform: "uppercase", marginBottom: 8 }}>
+            Výsledek kola
+          </div>
+          <div
+            style={{
+              marginBottom: 14,
+              padding: "18px 16px",
+              borderRadius: 16,
+              textAlign: "center",
+              background: C.orangeLight,
+              border: `3px solid ${P1}`,
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.gray600, marginBottom: 4 }}>Tvá přesnost</div>
+            <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.1, color: P1 }}>{Math.round(accP1)} %</div>
+          </div>
+          <button
+            type="button"
+            onClick={handleNextMatch}
+            style={{
+              marginTop: 4,
+              padding: "13px 20px",
+              borderRadius: 14,
+              border: "none",
+              width: "100%",
+              background: `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`,
+              color: "white",
+              fontWeight: 800,
+              fontSize: 15,
+              cursor: "pointer",
+              boxShadow: `0 4px 16px ${C.primary}44`,
+              fontFamily: FONT_UI,
+            }}
+          >
+            Další kolo →
+          </button>
+        </div>
+      )}
+
+      {phase === "results" && playerMode === "duo" && accP1 !== null && accP2 !== null && roundWinner !== null && (
         <div
           style={{
             animation: "fadeIn 0.45s",
@@ -2803,8 +3076,7 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
             {roundWinner !== "tie" && (
               <div style={{ fontSize: 14, fontWeight: 700, color: C.gray700, marginTop: 8 }}>
                 O{' '}
-                {Math.abs(Math.round(accP1) - Math.round(accP2))}
-                % přesněji než{' '}
+                {Math.abs(Math.round(accP1) - Math.round(accP2))} % přesněji než{' '}
                 {roundWinner === 0 ? "hráč 2" : "hráč 1"}.
               </div>
             )}
@@ -2822,7 +3094,7 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
               }}
             >
               <span style={{ fontWeight: 700, color: P1 }}>Hráč 1</span>
-              <span style={{ fontWeight: 900, fontSize: 20, color: P1 }}>{Math.round(accP1)}%</span>
+              <span style={{ fontWeight: 900, fontSize: 20, color: P1 }}>{Math.round(accP1)} %</span>
             </div>
             <div
               style={{
@@ -2836,7 +3108,7 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
               }}
             >
               <span style={{ fontWeight: 700, color: P2 }}>Hráč 2</span>
-              <span style={{ fontWeight: 900, fontSize: 20, color: P2 }}>{Math.round(accP2)}%</span>
+              <span style={{ fontWeight: 900, fontSize: 20, color: P2 }}>{Math.round(accP2)} %</span>
             </div>
           </div>
           <button
@@ -2865,7 +3137,9 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
       {playing && guessAngle !== null && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 13, color: C.gray600, fontWeight: 600, textAlign: "center" }}>
-            Tip hráče {activePlayer! + 1} — potvrď nebo zkus jiný úhel.
+            {playerMode === "solo"
+              ? "Potvrď tip nebo zkus jiný úhel."
+              : `Tip hráče ${activePlayer! + 1} — potvrď nebo zkus jiný úhel.`}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -2903,17 +3177,48 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
                 fontFamily: FONT_UI,
               }}
             >
-              {phase === "p1" ? "Potvrdit — hráč 2" : "Potvrdit a vyhodnotit"}
+              {phase === "p1"
+                ? playerMode === "solo"
+                  ? "Potvrdit a vyhodnotit"
+                  : "Potvrdit — hráč 2"
+                : "Potvrdit a vyhodnotit"}
             </button>
           </div>
         </div>
       )}
 
       {playing && guessAngle === null && (
-        <div style={{ textAlign: "center", color: C.gray500, fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>
-          {phase === "p1"
-            ? `Hráč 1: ukaž na kole, kde je ${targetN}/${targetD}.`
-            : `Hráč 2: stejné zadání — ukaž svůj tip na kole.`}
+        <div
+          style={{
+            textAlign: "center",
+            color: C.gray500,
+            fontSize: 13,
+            fontWeight: 600,
+            lineHeight: 1.4,
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          {phase === "p1" ? (
+            playerMode === "solo" ? (
+              <>
+                <span>Ukaž na kole, kde je</span>
+                <StackedFraction n={targetN} d={targetD} accent={C.gray600} size="sm" />
+                <span>.</span>
+              </>
+            ) : (
+              <>
+                <span>Hráč 1: ukaž na kole, kde je</span>
+                <StackedFraction n={targetN} d={targetD} accent={C.gray600} size="sm" />
+                <span>.</span>
+              </>
+            )
+          ) : (
+            <span>Hráč 2: stejné zadání — ukaž svůj tip na kole.</span>
+          )}
         </div>
       )}
     </aside>
@@ -3091,7 +3396,7 @@ const modules: readonly {
 }[] = [
   { id: "explorer", label: "Prozkoumej", desc: "Co je zlomek? Měň a sleduj.", illustrationBg: "#dcf3ff" },
   { id: "compare", label: "Porovnávání", desc: "Který zlomek je větší?", illustrationBg: "#ffedd5" },
-  { id: "equivalent", label: "Ekvivalence", desc: "Stejně velké, jinak zapsané.", illustrationBg: "#d1fae5" },
+  { id: "equivalent", label: "Rozšiřování", desc: "Stejně velké, jinak zapsané.", illustrationBg: "#d1fae5" },
   { id: "addition", label: "Sčítání", desc: "Sečti zlomky krok za krokem.", illustrationBg: "#ede9fe" },
   {
     id: "wheel",
@@ -3397,24 +3702,6 @@ export default function Zlomkarna() {
                     }}
                   >
                     {headerTitle}
-                  </div>
-                  <div
-                    style={{
-                      color: GX.body,
-                      fontSize: phoneLayout ? 11 : 12,
-                      fontWeight: 500,
-                      marginTop: 3,
-                      lineHeight: 1.35,
-                      maxWidth: 360,
-                      display: phoneLayout ? "-webkit-box" : undefined,
-                      WebkitLineClamp: phoneLayout ? 4 : undefined,
-                      WebkitBoxOrient: phoneLayout ? "vertical" : undefined,
-                      overflow: phoneLayout ? "hidden" : undefined,
-                    }}
-                  >
-                    {activeModule === "compare"
-                      ? "Na kartě je jen zvolený náhled (kruh / pruh / osa); číslo měníš v malém krokování nahoře. Mix = dva různé typy náhodně vlevo a vpravo; další klik Mix znovu losuje."
-                      : "Vlevo základní zlomek; uprostřed zvolíš násobek rozšíření (×1 až ×6); vpravo stejná hodnota v rozšířeném zápisu. Náhled jako u porovnávání."}
                   </div>
                 </div>
                 <div
