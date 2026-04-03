@@ -3026,32 +3026,6 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
         })}
       </div>
 
-      {playing && (
-        <div
-          style={{
-            padding: "10px 14px",
-            borderRadius: 14,
-            background: turnAccent + "18",
-            border: `1px solid ${turnAccent}44`,
-            fontWeight: 800,
-            fontSize: 15,
-            color: C.gray900,
-          }}
-        >
-          {phase === "p1" ? (
-            <>
-              Tah <span style={{ color: P1 }}>{playerMode === "solo" ? "tvůj" : "hráče 1"}</span>
-              <span style={{ fontWeight: 600, color: C.gray500, fontSize: 13 }}> — klikni na kolo vpravo</span>
-            </>
-          ) : (
-            <>
-              Tah <span style={{ color: P2 }}>hráče 2</span>
-              <span style={{ fontWeight: 600, color: C.gray500, fontSize: 13 }}> — stejné zadání, kolo je znovu prázdné</span>
-            </>
-          )}
-        </div>
-      )}
-
       {phase === "results" && playerMode === "solo" && accP1 !== null && (
         <div
           style={{
@@ -3244,41 +3218,6 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
           </div>
         </div>
       )}
-
-      {playing && guessAngle === null && (
-        <div
-          style={{
-            textAlign: "center",
-            color: C.gray500,
-            fontSize: 13,
-            fontWeight: 600,
-            lineHeight: 1.4,
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          {phase === "p1" ? (
-            playerMode === "solo" ? (
-              <>
-                <span>Ukaž na kole, kde je</span>
-                <StackedFraction n={targetN} d={targetD} accent={C.gray600} size="sm" />
-                <span>.</span>
-              </>
-            ) : (
-              <>
-                <span>Hráč 1: ukaž na kole, kde je</span>
-                <StackedFraction n={targetN} d={targetD} accent={C.gray600} size="sm" />
-                <span>.</span>
-              </>
-            )
-          ) : (
-            <span>Hráč 2: stejné zadání — ukaž svůj tip na kole.</span>
-          )}
-        </div>
-      )}
     </aside>
   );
 
@@ -3420,14 +3359,52 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
           minWidth: 0,
           minHeight: narrow ? (phone ? 240 : 280) : undefined,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
+          gap: 12,
           background: "#f3f4f6",
           borderRadius: narrow ? 16 : 24,
           border: `1px solid ${C.gray200}`,
-          padding: narrow ? "12px 8px" : undefined,
+          padding: narrow ? "12px 8px 16px" : "16px 12px 20px",
+          boxSizing: "border-box",
         }}
       >
+        {playing && (
+          <div
+            style={{
+              padding: "10px 14px",
+              borderRadius: 14,
+              background: turnAccent + "18",
+              border: `1px solid ${turnAccent}44`,
+              fontWeight: 800,
+              fontSize: 15,
+              color: C.gray900,
+              width: "100%",
+              maxWidth: Math.min(440, SIZE + 40),
+              boxSizing: "border-box",
+            }}
+          >
+            {phase === "p1" ? (
+              playerMode === "solo" ? (
+                <>
+                  Tah <span style={{ color: P1 }}>tvůj</span>
+                  <span style={{ fontWeight: 600, color: C.gray500, fontSize: 13 }}> – klikni na kolo a vyznač zadaný zlomek.</span>
+                </>
+              ) : (
+                <>
+                  Tah <span style={{ color: P1 }}>hráče 1</span>
+                  <span style={{ fontWeight: 600, color: C.gray500, fontSize: 13 }}> – klikni na kolo a vyznač zadaný zlomek.</span>
+                </>
+              )
+            ) : (
+              <>
+                Tah <span style={{ color: P2 }}>hráče 2</span>
+                <span style={{ fontWeight: 600, color: C.gray500, fontSize: 13 }}> – klikni na kolo a vyznač zadaný zlomek.</span>
+              </>
+            )}
+          </div>
+        )}
         {wheelSvg}
       </div>
     </div>
