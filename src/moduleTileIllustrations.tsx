@@ -200,36 +200,8 @@ export function ModuleTileIllustration({ moduleId, width = 100, height = 100, ..
             </filter>
           </defs>
           <g filter={`url(#${g("fv-sh")})`}>
-            <rect x="16" y="68" width="46" height="46" rx="7" fill="#fff" stroke="#3B5BDB" strokeWidth="2" />
-            {[
-              [0, 0],
-              [1, 0],
-              [2, 0],
-              [0, 1],
-              [1, 1],
-              [2, 1],
-              [0, 2],
-              [1, 2],
-              [2, 2],
-            ].map(([col, row], i) => {
-              const x = 21 + col * 14;
-              const y = 73 + row * 14;
-              const on = [0, 1, 2, 3, 4, 5].includes(i);
-              return (
-                <rect
-                  key={`${col}-${row}`}
-                  x={x}
-                  y={y}
-                  width={12}
-                  height={12}
-                  rx={2}
-                  fill={on ? "#3B5BDB" : "#E7ECFF"}
-                  fillOpacity={on ? 0.55 : 0.9}
-                  stroke="#B8C5F7"
-                  strokeWidth={0.8}
-                />
-              );
-            })}
+            <circle cx="39" cy="91" r="22" fill="#fff" stroke="#3B5BDB" strokeWidth="2" />
+            <path d="M39 69 A22 22 0 0 1 56 100 L39 91 Z" fill="#7CB3FF" fillOpacity={0.9} />
           </g>
           <circle cx="86" cy="44" r="26" fill="#fff" stroke={PIE_RING_LIGHT_BLUE} strokeWidth="2" />
           <path d="M86 18 A26 26 0 0 1 108 52 L86 44 Z" fill="#7CB3FF" opacity={0.9} />

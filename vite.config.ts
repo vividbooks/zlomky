@@ -4,7 +4,7 @@
   import path from 'path';
 
   export default defineConfig(({ mode }) => ({
-    // Dev: `/` — localhost:3000/…  |  Prod: GitHub Pages https://vividbooks.github.io/zlomky/
+    // Dev: `/` — localhost:3001/…  |  Prod: GitHub Pages https://vividbooks.github.io/zlomky/
     base: mode === 'development' ? '/' : '/zlomky/',
     plugins: [react()],
     css: {
@@ -76,7 +76,7 @@
       cssMinify: 'lightningcss',
     },
     server: {
-      port: 3000,
+      port: 3001,
       open: true,
     },
   }));

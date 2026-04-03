@@ -33,7 +33,7 @@ function useNarrowTwoCol(maxWidthPx: number) {
 }
 
 type Fraction = { numerator: number; denominator: number };
-type ViewMode = "pie" | "grid" | "numberline";
+type ViewMode = "pie" | "numberline";
 
 /** Kompaktní typografie / koláč — jen podle šířky okna (dotyk na desktopu nezmenšuje UI). */
 function useIsMobile() {
@@ -126,82 +126,6 @@ function PieChartViz({
   );
 }
 
-function GridViz({
-  subdivisions,
-  selectedSegments,
-  onSegmentClick,
-  isMobile,
-}: {
-  subdivisions: number;
-  selectedSegments: boolean[];
-  onSegmentClick: (index: number) => void;
-  isMobile: boolean;
-}) {
-  const gap = 6;
-  const squareSize = (() => {
-    if (subdivisions === 1) return isMobile ? 140 : 220;
-    if (subdivisions <= 4) return isMobile ? 72 : 110;
-    if (subdivisions <= 9) return isMobile ? 52 : 80;
-    if (subdivisions <= 16) return isMobile ? 42 : 58;
-    return isMobile ? 36 : 48;
-  })();
-
-  if (subdivisions === 1) {
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => onSegmentClick(0)}
-        onKeyDown={(e) => e.key === "Enter" && onSegmentClick(0)}
-        style={{
-          width: squareSize,
-          height: squareSize,
-          background: selectedSegments[0] ? "#25234f" : "#d3d3dc",
-          borderRadius: isMobile ? 8 : 10,
-          border: `${isMobile ? 4 : 6}px solid white`,
-          cursor: "pointer",
-          touchAction: "manipulation",
-        }}
-      />
-    );
-  }
-
-  const sqrt = Math.sqrt(subdivisions);
-  let cols = Math.ceil(sqrt);
-  if (cols > 6) cols = 6;
-  const rows = Math.ceil(subdivisions / cols);
-
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${cols}, ${squareSize}px)`,
-        gridTemplateRows: `repeat(${rows}, ${squareSize}px)`,
-        gap,
-      }}
-    >
-      {Array.from({ length: subdivisions }).map((_, index) => (
-        <div
-          key={index}
-          role="button"
-          tabIndex={0}
-          onClick={() => onSegmentClick(index)}
-          onKeyDown={(e) => e.key === "Enter" && onSegmentClick(index)}
-          style={{
-            width: squareSize,
-            height: squareSize,
-            background: selectedSegments[index] ? "#25234f" : "#d3d3dc",
-            borderRadius: isMobile ? 6 : 8,
-            border: `${isMobile ? 3 : 4}px solid white`,
-            cursor: "pointer",
-            touchAction: "manipulation",
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 function NumberLineViz({
   subdivisions,
   selectedSegments,
@@ -283,19 +207,15 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
   const [showResult, setShowResult] = useState<"correct" | "incorrect" | null>(null);
   const [viewModeIndex, setViewModeIndex] = useState(0);
 
-  const [totalCompleted, setTotalCompleted] = useState(0);
-  /** Počet odeslaných odpovědí (✓), bez „potřebuješ víc dílků“ — jako kvíz score/total */
-  const [totalAnswered, setTotalAnswered] = useState(0);
-
   const reallyGenerate = useCallback(() => {
     const denominators = [2, 3, 4, 5, 6, 8];
     const denominator = denominators[Math.floor(Math.random() * denominators.length)]!;
     const numerator = Math.floor(Math.random() * denominator) + 1;
-    const modes: ViewMode[] = ["pie", "grid", "numberline"];
+    const modes: ViewMode[] = ["pie", "numberline"];
     setViewModeIndex((prev) => {
-      const currentMode = modes[prev % 3]!;
+      const currentMode = modes[prev % 2]!;
       setViewMode(currentMode);
-      return (prev + 1) % 3;
+      return (prev + 1) % 2;
     });
     setCurrentFraction({ numerator, denominator });
     setSubdivisions(1);
@@ -322,7 +242,9 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
     const selectedCount = selectedSegments.filter(Boolean).length;
     const { numerator: n, denominator: d } = currentFraction;
 
-    if (subdivisions < d) {
+    // n/d = 1: jeden nečleněný díl (celý kruh / celý pruh) je totéž jako vybrat všech n dílků.
+    const wholeAsSinglePart = n === d && subdivisions === 1;
+    if (subdivisions < d && !wholeAsSinglePart) {
       setShowHint(true);
       setTimeout(() => setShowHint(false), 2000);
       return;
@@ -331,10 +253,7 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
     const scale = subdivisions / d;
     const target = n * scale;
 
-    setTotalAnswered((a) => a + 1);
-
     if (selectedCount === target) {
-      setTotalCompleted((t) => t + 1);
       setShowResult("correct");
       setTimeout(() => reallyGenerate(), 1500);
     } else {
@@ -350,26 +269,6 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
   const titleFracLineW = isMobile ? 68 : 92;
   const titleEquals = isMobile ? 36 : 46;
 
-  const scoreRow = (
-    <div
-      style={{
-        fontSize: 16,
-        color: GX.body,
-        fontWeight: 600,
-        fontFamily: FONT_UI,
-        whiteSpace: "nowrap",
-      }}
-    >
-      Správně{" "}
-      <strong style={{ color: GX.ink, fontSize: 17, fontWeight: 800 }}>
-        {totalCompleted}/{totalAnswered}
-      </strong>
-    </div>
-  );
-
-  const modeLabel =
-    viewMode === "pie" ? "Koláč" : viewMode === "grid" ? "Čtverce" : "Číselná osa";
-
   const vizCenter = (
     <div style={{ minHeight: isMobile ? 220 : 280, display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
       {viewMode === "pie" && (
@@ -380,9 +279,6 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
           isMobile={isMobile}
           maskPrefix={`fvz-${uid}`}
         />
-      )}
-      {viewMode === "grid" && (
-        <GridViz subdivisions={subdivisions} selectedSegments={selectedSegments} onSegmentClick={handleSegmentClick} isMobile={isMobile} />
       )}
       {viewMode === "numberline" && (
         <NumberLineViz subdivisions={subdivisions} selectedSegments={selectedSegments} onSegmentClick={handleSegmentClick} isMobile={isMobile} />
@@ -434,20 +330,6 @@ export function FractionVizGame({ onBack }: { onBack: () => void }) {
         {backBtn}
         <div style={{ color: GX.ink, fontSize: 21, fontWeight: 900, lineHeight: 1.2, letterSpacing: "-0.02em", fontFamily: FONT_UI }}>Vizuální zlomky</div>
       </div>
-      {scoreRow}
-      <p
-        style={{
-          margin: 0,
-          fontSize: 13,
-          fontWeight: 700,
-          color: GX.ink,
-          textTransform: "uppercase",
-          letterSpacing: 0.6,
-          fontFamily: FONT_UI,
-        }}
-      >
-        Úkol: označ správný díl — „{modeLabel}“
-      </p>
       <h2 style={{ margin: 0, fontSize: isMobile ? 22 : 26, fontWeight: 800, color: GX.ink, fontFamily: FONT_UI }}>Zaznamenej zlomek</h2>
 
       <div

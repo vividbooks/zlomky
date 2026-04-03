@@ -34,6 +34,30 @@ const simplify = (n: number, d: number): [number, number] => {
   const g = gcd(Math.abs(n), Math.abs(d));
   return [n / g, d / g];
 };
+/** Stejná racionální hodnota (pro kvíz — ekvivalentní zápisy). */
+const fractionEquals = (a: number, b: number, c: number, d: number) => a * d === b * c;
+
+/** Různé zápisy téže hodnoty (vizuál je vždy n₀/d₀). */
+function equivalentFractionForms(n0: number, d0: number, maxDen: number): { n: number; d: number }[] {
+  const out: { n: number; d: number }[] = [];
+  const seen = new Set<string>();
+  const push = (a: number, b: number) => {
+    if (b > maxDen || a < 1 || b < 1 || a >= b) return;
+    const k = `${a}/${b}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push({ n: a, d: b });
+  };
+  push(n0, d0);
+  const [sn, sd] = simplify(n0, d0);
+  if (sn !== n0 || sd !== d0) push(sn, sd);
+  for (let k = 2; k <= 8; k++) {
+    const den = d0 * k;
+    if (den > maxDen) break;
+    push(n0 * k, den);
+  }
+  return out;
+}
 const randInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 const shuffle = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5);
@@ -1595,7 +1619,7 @@ function ModuleEquivalent({ visualA, visualB }: { visualA: ExplorerVisual; visua
     return () => ro.disconnect();
   }, [visualA, visualB, cN, cD]);
 
-  const equivStepperMaxN = 6;
+  const equivStepperMaxN = 8;
   const equivStepperMaxD = 8;
 
   return (
@@ -2093,35 +2117,109 @@ type QuizHudState = {
   total: number;
 };
 
-/** Úrovně kvízu „Poznávej zlomek“ — vždy stejný typ úlohy, liší se rozsah jmenovatele. */
+/** Úrovně kvízu „Poznávej zlomek“ — stejný typ úlohy; obtížnost = rozsah jmenovatele a záludnost možností. */
 const QUIZ_LEVELS = [
-  { label: "Začátečník", emoji: "🌱", color: C.teal, maxD: 6 },
-  { label: "Pokročilý", emoji: "⚡", color: C.orange, maxD: 10 },
-  { label: "Mistr", emoji: "🏆", color: C.pink, maxD: 12 },
+  { label: "Začátečník", emoji: "🌱", color: C.teal, minD: 2, maxD: 6 },
+  { label: "Pokročilý", emoji: "⚡", color: C.orange, minD: 3, maxD: 12 },
+  { label: "Mistr", emoji: "🏆", color: C.pink, minD: 5, maxD: 18 },
 ] as const;
 
 function genIdentifyQuestion(levelIdx: number): QuizQuestion {
-  const maxD = QUIZ_LEVELS[levelIdx].maxD;
-  const d = randInt(2, Math.min(maxD, 12)),
-    n = randInt(1, d - 1);
+  const { minD, maxD } = QUIZ_LEVELS[levelIdx];
+  const dVis = randInt(minD, maxD),
+    nVis = randInt(1, dVis - 1);
+
+  const pool: { n: number; d: number }[] = [];
+  const addWrongVsVisual = (a: number, b: number) => {
+    if (a < 1 || b < 1) return;
+    if (fractionEquals(a, b, nVis, dVis)) return;
+    pool.push({ n: a, d: b });
+  };
+
+  if (levelIdx === 0) {
+    addWrongVsVisual(dVis, nVis);
+    addWrongVsVisual(nVis, dVis + 1);
+  } else {
+    addWrongVsVisual(dVis, nVis);
+    addWrongVsVisual(nVis, dVis + 1);
+    if (levelIdx >= 1) {
+      if (nVis + 1 < dVis) addWrongVsVisual(nVis + 1, dVis);
+      if (nVis > 1) addWrongVsVisual(nVis - 1, dVis);
+      if (dVis >= 3) addWrongVsVisual(nVis, dVis - 1);
+    }
+    if (levelIdx >= 2) {
+      addWrongVsVisual(nVis, dVis + 2);
+      if (nVis + 2 < dVis) addWrongVsVisual(nVis + 2, dVis);
+      if (nVis > 2) addWrongVsVisual(nVis - 2, dVis);
+    }
+  }
+
+  const seenKeys = new Set<string>();
+  const uniquePool = pool.filter((p) => {
+    const k = `${p.n}/${p.d}`;
+    if (seenKeys.has(k)) return false;
+    seenKeys.add(k);
+    return true;
+  });
+
+  let wrongPairs: { n: number; d: number }[];
+  if (levelIdx === 0) {
+    wrongPairs = uniquePool;
+  } else {
+    wrongPairs = shuffle(uniquePool).slice(0, 2);
+    let extra = 1;
+    while (wrongPairs.length < 2) {
+      const cand = { n: nVis, d: dVis + 1 + extra };
+      extra += 1;
+      const ck = `${cand.n}/${cand.d}`;
+      if (wrongPairs.some((w) => `${w.n}/${w.d}` === ck)) continue;
+      if (cand.n === nVis && cand.d === dVis) continue;
+      if (fractionEquals(cand.n, cand.d, nVis, dVis)) continue;
+      wrongPairs.push(cand);
+    }
+  }
+
+  let correctPair: { n: number; d: number };
+  let explain: ReactNode;
+  if (levelIdx === 0) {
+    correctPair = { n: nVis, d: dVis };
+    explain = (
+      <>
+        Obarveno {nVis} z {dVis} dílů → správně je{' '}
+        <StackedFraction n={correctPair.n} d={correctPair.d} accent={GX.ink} size="sm" />.
+      </>
+    );
+  } else {
+    const maxEquivDen = levelIdx >= 2 ? 36 : 24;
+    const equivForms = equivalentFractionForms(nVis, dVis, maxEquivDen);
+    correctPair = equivForms[randInt(0, equivForms.length - 1)]!;
+    const sameWriting = correctPair.n === nVis && correctPair.d === dVis;
+    explain = sameWriting ? (
+      <>
+        Obarveno {nVis} z {dVis} dílů → správně je{' '}
+        <StackedFraction n={correctPair.n} d={correctPair.d} accent={GX.ink} size="sm" />.
+      </>
+    ) : (
+      <>
+        Obarveno {nVis} z {dVis} dílů → stejnou část představuje i{' '}
+        <StackedFraction n={correctPair.n} d={correctPair.d} accent={GX.ink} size="sm" />{' '}
+        (rozšířený nebo zkrácený zápis).
+      </>
+    );
+  }
+
   const opts = shuffle([
-    { pair: { n, d } as const, c: true },
-    { pair: { n: d, d: n } as const, c: false },
-    { pair: { n, d: d + 1 } as const, c: false },
+    ...wrongPairs.map((pair) => ({ pair, c: false as const })),
+    { pair: correctPair, c: true as const },
   ]);
   return {
     type: "identify",
     text: "Který zlomek odpovídá obrázku?",
-    n1: n,
-    d1: d,
+    n1: nVis,
+    d1: dVis,
     options: opts.map((o) => o.pair),
     answer: opts.findIndex((o) => o.c),
-    explain: (
-      <>
-        Obarveno {n} z {d} dílů → správně je{' '}
-        <StackedFraction n={n} d={d} accent={GX.ink} size="sm" />.
-      </>
-    ),
+    explain,
   };
 }
 
@@ -2569,6 +2667,8 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
   const narrow = useZlomkNarrowLayout();
   const phone = useZlomkPhoneLayout();
   const svgRef = useRef<SVGSVGElement | null>(null);
+  /** Aby po sobě nepadlo stejné zadání (n/d jako minule). */
+  const prevWheelFractionRef = useRef<{ n: number; d: number } | null>(null);
   const [targetN, setTargetN] = useState(3),
     [targetD, setTargetD] = useState(4);
   const [guessAngle, setGuessAngle] = useState<number | null>(null);
@@ -2583,7 +2683,6 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
   const [playerRoundCounts, setPlayerRoundCounts] = useState<[number, number]>([0, 0]);
   const [hoverAngle, setHoverAngle] = useState(0);
   const [hovering, setHovering] = useState(false);
-  const [difficulty, setDifficulty] = useState(0);
 
   const SIZE = 420,
     CX = SIZE / 2,
@@ -2603,20 +2702,22 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
     phase === "results" && storedAngles[1] !== null ? wheelAngleAccuracy(storedAngles[1], targetAngle) : null;
 
   const genRound = useCallback(() => {
-    const denoms =
-      difficulty === 0
-        ? [2, 3, 4]
-        : difficulty === 1
-          ? [2, 3, 4, 5, 6, 8]
-          : [2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
-    const d = denoms[randInt(0, denoms.length - 1)];
-    const n = randInt(1, difficulty === 0 ? d - 1 : d);
+    const denoms = [2, 3, 4, 5, 6, 8];
+    const prev = prevWheelFractionRef.current;
+    let n = 1,
+      d = 4;
+    for (let attempt = 0; attempt < 40; attempt++) {
+      d = denoms[randInt(0, denoms.length - 1)]!;
+      n = randInt(1, d - 1);
+      if (prev === null || !fractionEquals(prev.n, prev.d, n, d)) break;
+    }
+    prevWheelFractionRef.current = { n, d };
     setTargetN(n);
     setTargetD(d);
     setPhase("p1");
     setStoredAngles([null, null]);
     setGuessAngle(null);
-  }, [difficulty]);
+  }, []);
 
   useEffect(() => {
     genRound();
@@ -2679,7 +2780,11 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
       const a1 = guessAngle;
       const s0 = Math.round(wheelAngleAccuracy(a0, targetAngle));
       const s1 = Math.round(wheelAngleAccuracy(a1, targetAngle));
-      setPlayerTotals((t) => [t[0] + s0, t[1] + s1]);
+      let win0 = 0,
+        win1 = 0;
+      if (s0 > s1) win0 = 1;
+      else if (s1 > s0) win1 = 1;
+      setPlayerTotals((t) => [t[0] + win0, t[1] + win1]);
       setPlayerRoundCounts((c) => [c[0] + 1, c[1] + 1]);
       setStoredAngles([a0, a1]);
       setPhase("results");
@@ -2761,8 +2866,10 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
 
   let roundWinner: 0 | 1 | "tie" | null = null;
   if (playerMode === "duo" && phase === "results" && accP1 !== null && accP2 !== null) {
-    if (accP1 > accP2) roundWinner = 0;
-    else if (accP2 > accP1) roundWinner = 1;
+    const r1 = Math.round(accP1),
+      r2 = Math.round(accP2);
+    if (r1 > r2) roundWinner = 0;
+    else if (r2 > r1) roundWinner = 1;
     else roundWinner = "tie";
   }
 
@@ -2846,49 +2953,6 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
         })}
       </div>
 
-      <p style={{ fontSize: 13, color: C.gray500, margin: 0, lineHeight: 1.45 }}>
-        {playerMode === "solo" ? (
-          <>
-            <strong style={{ color: C.gray900 }}>Solo:</strong> jedno zadání — ukaž na kole úhel pro{' '}
-            <span style={{ display: "inline-flex", verticalAlign: "middle", alignItems: "center" }}>
-              <StackedFraction n={targetN} d={targetD} accent={C.primary} size="sm" />
-            </span>
-            , potvrď a uvidíš správný směr a své body.
-          </>
-        ) : (
-          <>
-            <strong style={{ color: C.gray900 }}>Dvojuhra:</strong> jedno zadání pro oba — nejdřív hráč&nbsp;1 (oranžová), pak
-            hráč&nbsp;2 (fialová) na prázdném kole, potom vyhodnocení.
-          </>
-        )}
-      </p>
-
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {(["🌱 Snadné", "⚡ Střední", "🏆 Těžké"] as const).map((l, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => {
-              setDifficulty(i);
-              resetCompetition();
-            }}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 12,
-              border: `2px solid ${i === difficulty ? C.primary : C.gray200}`,
-              background: i === difficulty ? C.primaryLight : C.card,
-              color: i === difficulty ? C.primary : C.gray500,
-              fontWeight: 700,
-              fontSize: 12,
-              cursor: "pointer",
-              fontFamily: FONT_UI,
-            }}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
-
       <div
         style={{
           display: "grid",
@@ -2899,7 +2963,12 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
         {(playerMode === "solo" ? ([0] as const) : ([0, 1] as const)).map((pid) => {
           const on = activePlayer === pid;
           const cnt = playerRoundCounts[pid];
-          const avg = cnt > 0 ? Math.round(playerTotals[pid] / cnt) : null;
+          const avg =
+            cnt > 0
+              ? playerMode === "duo"
+                ? Math.round((playerTotals[pid] / cnt) * 100)
+                : Math.round(playerTotals[pid] / cnt)
+              : null;
           const baseBorder = pid === 0 ? P1 : P2;
           const wonRound =
             phase === "results" && roundWinner !== null && roundWinner !== "tie"
@@ -2941,7 +3010,11 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.gray500 }}> b</span>
               </div>
               <div style={{ fontSize: 12, color: C.gray500, marginTop: 4 }}>
-                {cnt > 0 && avg !== null ? `Průměr ${avg} % · ${cnt} kol` : "Zatím nehrál"}
+                {cnt > 0 && avg !== null
+                  ? playerMode === "duo"
+                    ? `Úspěšnost ${avg} % · ${cnt} kol`
+                    : `Průměr ${avg} % · ${cnt} kol`
+                  : "Zatím nehrál"}
               </div>
               {phase === "results" && (pid === 0 ? accP1 : accP2) !== null && (
                 <div style={{ fontSize: 13, fontWeight: 800, color: C.gray700, marginTop: 6 }}>
@@ -3038,13 +3111,10 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
             border: `1px solid ${C.gray200}`,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 800, color: C.gray500, textTransform: "uppercase", marginBottom: 8 }}>
-            Vyhodnocení kola
-          </div>
           <div
             style={{
               marginBottom: 14,
-              padding: "14px 16px",
+              padding: "18px 16px",
               borderRadius: 16,
               textAlign: "center",
               background:
@@ -3058,7 +3128,6 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
               }`,
             }}
           >
-            <div style={{ fontSize: 12, fontWeight: 800, color: C.gray600, marginBottom: 4 }}>Výsledek</div>
             <div
               style={{
                 fontSize: 26,
@@ -3073,13 +3142,6 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
                   ? "Vyhrává hráč 1"
                   : "Vyhrává hráč 2"}
             </div>
-            {roundWinner !== "tie" && (
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.gray700, marginTop: 8 }}>
-                O{' '}
-                {Math.abs(Math.round(accP1) - Math.round(accP2))} % přesněji než{' '}
-                {roundWinner === 0 ? "hráč 2" : "hráč 1"}.
-              </div>
-            )}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div
@@ -3177,11 +3239,7 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
                 fontFamily: FONT_UI,
               }}
             >
-              {phase === "p1"
-                ? playerMode === "solo"
-                  ? "Potvrdit a vyhodnotit"
-                  : "Potvrdit — hráč 2"
-                : "Potvrdit a vyhodnotit"}
+              Potvrdit
             </button>
           </div>
         </div>
@@ -3271,18 +3329,6 @@ function ModuleWheel({ onBack }: { onBack: () => void }) {
       </defs>
 
       <circle cx={CX} cy={CY} r={R} fill="#FFFFFF" stroke={C.gray300} strokeWidth="2.5" />
-
-      <text
-        x={CX}
-        y={CY - R + 26}
-        textAnchor="middle"
-        fontSize="17"
-        fontWeight="800"
-        fill={C.gray700}
-        fontFamily={FONT_UI}
-      >
-        0
-      </text>
 
       {phase === "p1" && guessAngle !== null && guessEnd && filledArc(guessAngle, R - 2, P1, 0.42)}
       {phase === "p2" && guessAngle !== null && guessEnd && filledArc(guessAngle, R - 2, P2, 0.42)}
