@@ -3,9 +3,9 @@
   import react from '@vitejs/plugin-react-swc';
   import path from 'path';
 
-  export default defineConfig(({ mode }) => ({
-    // Dev: `/` — localhost:3001/…  |  Prod: GitHub Pages https://vividbooks.github.io/zlomky/
-    base: mode === 'development' ? '/' : '/zlomky/',
+  export default defineConfig(() => ({
+    // Default `/` — subdomain or own domain root (e.g. zlomky.tagline.cz). GitHub Pages: `npm run build:github-pages`.
+    base: '/',
     plugins: [react()],
     css: {
       transformer: 'lightningcss',

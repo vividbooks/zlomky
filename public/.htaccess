@@ -1,11 +1,10 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /rysovani-app/
+  # App at site root (e.g. zlomky.tagline.cz). If you ever deploy in a subfolder, set this to that path + trailing slash.
+  RewriteBase /
 
-  # Don't rewrite files or directories
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
 
-  # Rewrite everything else to index.html for SPA routing
   RewriteRule ^ index.html [L]
 </IfModule>

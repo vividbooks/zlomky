@@ -1,5 +1,17 @@
+import { MantineProvider, createTheme } from "@mantine/core";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import "@mantine/core/styles.css";
 import "./index.css";
 
-createRoot(document.getElementById("root")!).render(<App />);
+const theme = createTheme({
+  primaryColor: "blue",
+  radius: { md: "12px", lg: "16px" },
+  fontFamily: "'Fenomen Sans', ui-sans-serif, system-ui, sans-serif",
+});
+
+createRoot(document.getElementById("root")!).render(
+  <MantineProvider theme={theme} defaultColorScheme="light">
+    <App />
+  </MantineProvider>,
+);
