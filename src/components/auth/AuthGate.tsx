@@ -10,6 +10,7 @@ const AUTH_REDIRECT_URL =
   import.meta.env.VITE_AUTH_REDIRECT_URL?.trim() ||
   "https://app.vividbooks.com";
 const ENABLE_AUTH_GATE = import.meta.env.VITE_ENABLE_AUTH_GATE === "true";
+const AUTH_GATE_DOMAIN_EXCEPTIONS = ["vividboard.cz"];
 
 function readCookie(name: string): string | null {
   const entries = document.cookie.split(";").map((part) => part.trim());
@@ -63,11 +64,28 @@ function isAuthenticatedUserType(userType: string | null): boolean {
   return !userType.toLowerCase().includes("unauth");
 }
 
+function isAuthGateExceptionHost(hostname: string): boolean {
+  const isLocalhost = hostname === "localhost" || hostname.endsWith(".localhost");
+  const isIpAddress = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
+  if (isLocalhost || isIpAddress) {
+    return true;
+  }
+
+  return AUTH_GATE_DOMAIN_EXCEPTIONS.some(
+    (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
+  );
+}
+
 export function AuthGate({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>("checking");
 
   useEffect(() => {
     if (!ENABLE_AUTH_GATE) {
+      setStatus("allowed");
+      return;
+    }
+
+    if (isAuthGateExceptionHost(window.location.hostname)) {
       setStatus("allowed");
       return;
     }
