@@ -10,7 +10,7 @@ const AUTH_REDIRECT_URL =
   import.meta.env.VITE_AUTH_REDIRECT_URL?.trim() ||
   "https://app.vividbooks.com";
 const ENABLE_AUTH_GATE = import.meta.env.VITE_ENABLE_AUTH_GATE === "true";
-const AUTH_GATE_DOMAIN_EXCEPTIONS = ["vividboard.cz"];
+const AUTH_GATE_DOMAIN_EXCEPTIONS = ["vividboard.cz", "tagline.cz"];
 
 function readCookie(name: string): string | null {
   const entries = document.cookie.split(";").map((part) => part.trim());
