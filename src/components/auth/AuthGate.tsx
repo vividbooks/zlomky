@@ -82,7 +82,10 @@ function isAuthGateExceptionHost(hostname: string): boolean {
 }
 
 export function AuthGate({ children }: PropsWithChildren) {
-  const [status, setStatus] = useState<AuthStatus>("checking");
+  const shouldBypass = isAuthGateExceptionHost(window.location.hostname);
+  const [status, setStatus] = useState<AuthStatus>(
+    !ENABLE_AUTH_GATE || shouldBypass ? "allowed" : "checking",
+  );
 
   useEffect(() => {
     if (!ENABLE_AUTH_GATE) {
@@ -90,7 +93,7 @@ export function AuthGate({ children }: PropsWithChildren) {
       return;
     }
 
-    if (isAuthGateExceptionHost(window.location.hostname)) {
+    if (shouldBypass) {
       setStatus("allowed");
       return;
     }
@@ -161,7 +164,7 @@ export function AuthGate({ children }: PropsWithChildren) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [shouldBypass]);
 
   if (status === "checking") {
     return (
